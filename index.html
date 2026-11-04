@@ -52,6 +52,10 @@
   </div>
 
   <button id="go" class="btn"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
+  <div class="field" style="flex-direction:row;align-items:center;gap:8px;margin:4px 0">
+    <input type="checkbox" id="remember" style="width:18px;height:18px;accent-color:#10b981">
+    <label for="remember" style="color:var(--muted);font-size:.9rem;cursor:pointer">تذكر معلومات الدخول</label>
+  </div>
   <div id="err" class="err"></div>
   <div class="foot">تلميح: الإعداد الافتراضي <b>admin / 1234</b></div>
 </div>
@@ -71,7 +75,7 @@
   });
 
   function submit(){
-    const res = window.tryLogin(u.value.trim(), p.value);
+    const res = window.tryLogin(u.value.trim(), p.value, document.getElementById('remember').checked);
     if(res && res.ok){
       err.style.display = 'none';
       location.href = 'Madaba.html'; // ← لوحة النظام بعد الدخول

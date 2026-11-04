@@ -179,7 +179,7 @@
   .layer-toast.show{opacity:1; transform:translateY(0);}
 
   /* شريط بحث إحداثيات صغير على الخريطة */
-  .mini-xy{ position:absolute; top:12px; left:12px; z-index:1000; display:flex; gap:6px;
+  .mini-xy{ position:absolute; top:180px; left:12px; z-index:1000; display:flex; gap:6px;
     background:rgba(11,19,46,.88); border:1px solid var(--border); border-radius:12px;
     padding:6px; backdrop-filter:blur(6px); box-shadow:0 2px 10px rgba(0,0,0,.35); }
   .mini-xy input{ width:96px; background:#0a1429; border:1px solid var(--border); color:var(--text);
@@ -1101,7 +1101,7 @@ map.on('draw:edited', updateLength);
     const key=fileKeyFromUrl(fileUrl), display=(NAME_MAP[key]?.name)||niceName(key), desc=(NAME_MAP[key]?.desc)||display;
     const meta=summarizeGeoJSON(geojson);
     const stylePair=STYLE_MAP[key]||FALLBACK_PALETTE[LAYERS.size%FALLBACK_PALETTE.length];
-const defaultOn=new Set(['MAD_BALDIEAT.kmz','jor.kmz']);
+const defaultOn=new Set(['B Madaba.kmz','MAD_BALDIEAT.kmz','jor.kmz']);
     const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:.25,show:defaultOn.has(key)};
     const gj=L.geoJSON(geojson,{
       style:()=>({color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity}),
