@@ -35,7 +35,7 @@
   body{margin:0;background:#061022;color:var(--text);
        font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Kufi Arabic","Noto Sans Arabic",Tahoma,Arial,sans-serif}
 
-  #app{display:grid;grid-template-columns:clamp(270px,30vw,390px) 1fr 420px;height:100vh;transition:grid-template-columns .25s ease}
+  #app{display:grid;grid-template-columns:clamp(270px,30vw,390px) 1fr 420px;height:100vh;transition:grid-template-columns .25s ease; overflow:hidden; position:relative}
   #map{width:100%;height:100%; position:sticky; top:0; }
   #app.hide-main{grid-template-columns:clamp(270px,30vw,390px) 1fr 0}
   #app.hide-main #mainPane{width:0;padding:0;border:0;overflow:hidden}
@@ -155,7 +155,7 @@
   #f_jur option{ color:#ff4d4f !important; font-weight:800 }
 
   /* أزرار مثبتة أعلى الخريطة */
-  .mapFabWrap{ position:absolute; top:12px; right:12px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
+  .mapFabWrap{ position:absolute; top:50px; right:12px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
   .mapFab{
     background:#0b1324; border:1px solid var(--border);
     color:#cfe6ff; border-radius:999px; padding:8px 12px;
@@ -183,7 +183,7 @@
   .layer-toast.show{opacity:1; transform:translateY(0);}
 
   /* شريط بحث إحداثيات صغير على الخريطة */
-  .mini-xy{ position:absolute; top:12px; left:200px; z-index:1000; display:flex; gap:6px;
+  .mini-xy{ position:absolute; top:50px; left:200px; z-index:1000; display:flex; gap:6px;
     background:rgba(11,19,46,.88); border:1px solid var(--border); border-radius:12px;
     padding:6px; backdrop-filter:blur(6px); box-shadow:0 2px 10px rgba(0,0,0,.35); }
   .mini-xy input{ width:230px; background:#0a1429; border:1px solid var(--border); color:var(--text);
@@ -258,7 +258,7 @@
   }
 /* === قياس: شريط أدوات عائم === */
 .measure-toggle{
-  position:absolute; top:13px; left:45px; z-index:1200;
+  position:absolute; top:50px; left:45px; z-index:1200;
   background:#10b981; color:#063b35; border:0; border-radius:10px;
   padding:8px 12px; font-weight:900; cursor:pointer;
   box-shadow:0 2px 10px rgba(0,0,0,.3), inset 0 0 0 1px #0e8f73;
@@ -615,7 +615,7 @@ try{ requireAuth(); }catch(e){ console.warn('auth disabled:', e); }
 
 
 <header style="display:flex;justify-content:space-between;align-items:center;
-               background:#0f172a;color:#fff;padding:200px 16px">
+               background:#0f172a;color:#fff;padding:8px 16px;position:absolute;top:0;left:0;right:0;z-index:1000">
   <div style="font-weight:bold">خريطة مادبا</div>
   <div>
     <button onclick="location.href='Madaba.html'" 
