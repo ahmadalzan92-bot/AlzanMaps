@@ -624,7 +624,7 @@ try{ requireAuth(); }catch(e){ console.warn('auth disabled:', e); }
                    border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
       تسجيل خروج
     </button>
-    <button id="measureToggle" class="measure-toggle" title="قياس">أدوات القياس</button>
+    <button id="measureToggle" class="measure-toggle" title="قياس" onclick="document.getElementById('measurePanel').classList.toggle('open')">أدوات القياس</button>
 <div id="measurePanel" class="measure-panel" role="dialog" aria-label="أدوات القياس">
   <div class="row">
     <button id="mDist"  class="btn" title="قياس مسافة">مسافة</button>
