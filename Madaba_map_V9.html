@@ -1114,6 +1114,23 @@ map.on('draw:edited', updateLength);
   const STYLE_MAP={'B Madaba.kmz':{stroke:'#147d6f',fill:'#8ee3d6'},'B Name.kmz':{stroke:'#0ea5e9',fill:'#93c5fd'},'basin boundry.kmz':{stroke:'#a855f7',fill:'#d8b4fe'},'g1.kmz':{stroke:'#e11d48',fill:'#fecaca'},'jor.kmz':{stroke:'#f59e0b',fill:'#fde68a'},'Tanzeem.kmz':{stroke:'#16a34a',fill:'#bbf7d0'},'MAD_JVB.kmz':{stroke:'#0d9488',fill:'#99f6e4'},'MAD_BALDIEAT.kmz':{stroke:'#7c3aed',fill:'#ddd6fe'},'حدود محافظة.kmz':{stroke:'#1f2937',fill:'#9ca3af'}};
   const FALLBACK_PALETTE=[{stroke:'#7c3aed',fill:'#c4b5fd'},{stroke:'#06b6d4',fill:'#a5f3fc'},{stroke:'#d97706',fill:'#fcd34d'},{stroke:'#be185d',fill:'#fbcfe8'}];
   const BASE_WEIGHT=3; const LAYERS=new Map();
+  /* ترتيب ثابت للطبقات فوق بعضها: المحافظة أسفل، ثم البلديات، ثم سلطة وادي الأردن */
+  const LAYER_PANES={
+    'حدود محافظة.kmz':{name:'paneGov',z:401},
+    'MAD_BALDIEAT.kmz':{name:'paneMunicipalities',z:410},
+    'jor.kmz':{name:'paneJVA',z:420},
+    'MAD_JVB.kmz':{name:'paneJVA',z:420}
+  };
+  const GOV_LAYER_KEY='حدود محافظة.kmz';
+  function ensureLayerPane(key){
+    const rule=LAYER_PANES[key];
+    if(!rule) return null;
+    if(!map.getPane(rule.name)){
+      const pane=map.createPane(rule.name);
+      pane.style.zIndex=String(rule.z);
+    }
+    return rule.name;
+  }
   const featureName=p=>p?.AR_NAME||p?.name||p?.Name||p?.arabic_name||p?.ARABIC||p?.NAM||'';
   function summarizeGeoJSON(gj){
     let c={Point:0,LineString:0,Polygon:0,MultiPoint:0,MultiLineString:0,MultiPolygon:0,Other:0},total=0;
@@ -1139,8 +1156,11 @@ map.on('draw:edited', updateLength);
     const meta=summarizeGeoJSON(geojson);
     const stylePair=STYLE_MAP[key]||FALLBACK_PALETTE[LAYERS.size%FALLBACK_PALETTE.length];
 const defaultOn=new Set(['حدود محافظة.kmz','MAD_BALDIEAT.kmz','jor.kmz']);
-    const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:.25,show:defaultOn.has(key)};
+    const isGovLayer = key===GOV_LAYER_KEY;
+    const layerPane = ensureLayerPane(key);
+    const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:isGovLayer?0:.25,show:defaultOn.has(key)};
     const gj=L.geoJSON(geojson,{
+      pane: layerPane || 'overlayPane',
       style:()=>({color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity}),
       pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:4,color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:.9}),
       onEachFeature:(f,layer)=>{
@@ -1215,7 +1235,8 @@ const defaultOn=new Set(['حدود محافظة.kmz','MAD_BALDIEAT.kmz','jor.kmz
         const stroke=root.querySelector('.stroke').value;
         const weight=+root.querySelector('.weight').value;
         const fill=root.querySelector('.fill').value;
-        const fillOp=parseFloat(root.querySelector('.fillop').value);
+        let fillOp=parseFloat(root.querySelector('.fillop').value);
+        if(id===GOV_LAYER_KEY){ fillOp=0; root.querySelector('.fillop').value='0'; }
         info.opts={...info.opts,color:stroke,weight,fillColor:fill,fillOpacity:fillOp};
         try{ info.layer.setStyle({color:stroke,weight,fillColor:fill,fillOpacity:fillOp}); }catch{}
         updateSwatch(root,info.opts);
@@ -1248,7 +1269,9 @@ const defaultOn=new Set(['حدود محافظة.kmz','MAD_BALDIEAT.kmz','jor.kmz
     root.querySelector('.stroke').value=rgbToHex(opts.color);
     root.querySelector('.fill').value=rgbToHex(opts.fillColor);
     root.querySelector('.weight').value=opts.weight;
-    root.querySelector('.fillop').value=opts.fillOpacity;
+    const fillOpEl=root.querySelector('.fillop');
+    fillOpEl.value = id===GOV_LAYER_KEY ? 0 : opts.fillOpacity;
+    if(id===GOV_LAYER_KEY){ fillOpEl.disabled=true; fillOpEl.title='شفافية كاملة ثابتة لحدود المحافظة'; }
     root.querySelector('.vis').checked=!!opts.show;
     updateSwatch(root,opts);
   }
