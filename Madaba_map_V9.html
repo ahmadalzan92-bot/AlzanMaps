@@ -1355,8 +1355,14 @@ function saveRoadsGrid(){
 }
 
 /* اربط الأزرار بعد اكتمال بناء الـDOM */
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btnOpenRoadsEditor')?.addEventListener('click', openRoadsEditor);
+document.addEventListener('DOMContentLoaded', ()=>{
+  const btn = document.getElementById('measureToggle');
+  if(btn){
+    btn.addEventListener('click', ()=> {
+      document.getElementById('measurePanel')?.classList.toggle('open');
+    });
+  }
+});
   document.getElementById('btnAddRoadRow')?.addEventListener('click', addEmptyRoadRow);
   document.getElementById('btnSaveRoadsGrid')?.addEventListener('click', saveRoadsGrid);
   document.getElementById('btnCloseRoadsGrid')?.addEventListener('click', closeRoadsEditor);
