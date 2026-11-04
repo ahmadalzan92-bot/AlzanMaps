@@ -1560,8 +1560,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function goToXY(x,y){
     if(Math.abs(x)>180||Math.abs(y)>90){ showErr(document.getElementById('xyErr'),'إحداثيات خارج مدى WGS84.'); return; }
     const latlng=L.latLng(y,x);
-    const icon=L.divIcon({className:'target-pin target-pulse',iconSize:[38,38],iconAnchor:[19,19]});
-    if(!xyMarker){ xyMarker=L.marker(latlng,{icon}).addTo(map); } else { xyMarker.setIcon(icon); xyMarker.setLatLng(latlng); }
     const r=Math.max(0,Number(document.getElementById('rad').value||0));
     if(r>0){
       if(!xyCircle){ xyCircle=L.circle(latlng,{radius:r,color:'#FFD700',weight:2,fillOpacity:0.05}).addTo(map);}
@@ -1571,7 +1569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     map.setView(latlng, Math.max(map.getZoom(), 15), {animate:true, duration:0.8});
     setTimeout(()=>centerAligned(latlng), 350);
   }
-  function clearMarker(){ if(xyMarker){ map.removeLayer(xyMarker); xyMarker=null; } if(xyCircle){ map.removeLayer(xyCircle); xyCircle=null; } }
+  function clearMarker(){ if(xyCircle){ map.removeLayer(xyCircle); xyCircle=null; } clearTarget(); }
 
   function clearSelect(sel){ sel.innerHTML=''; sel.appendChild(document.createElement('option')); }
   function clearAll(){
