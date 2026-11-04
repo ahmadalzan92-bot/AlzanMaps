@@ -32,10 +32,28 @@
     --border:#1c2a4e; --chip:#243657; --accent:#10b981;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:#061022;color:var(--text);
+  body{margin:0;background:#061022;color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;
        font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Kufi Arabic","Noto Sans Arabic",Tahoma,Arial,sans-serif}
 
-  #app{display:grid;grid-template-columns:clamp(270px,30vw,390px) 1fr 420px;grid-template-rows:100vh;height:100vh;transition:grid-template-columns .25s ease; overflow:hidden; position:relative}
+  /* الشريط العلوي: جزء من تخطيط الصفحة ولا يغطي الأقسام */
+  .topbar{
+    order:-1; flex:0 0 auto; position:relative; z-index:1200;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    gap:10px 16px; padding:8px 16px;
+    background:#0f172a; color:#fff; border-bottom:1px solid var(--border);
+    box-shadow:0 2px 10px rgba(0,0,0,.25);
+  }
+  .topbar-brand{display:flex; align-items:center; gap:10px; min-width:0}
+  .topbar-logo{width:38px;height:38px;object-fit:contain;border-radius:10px;background:#fff;padding:3px;box-shadow:0 0 0 1px #e5e7eb}
+  .topbar-title{font-weight:900;font-size:16px;line-height:1.25}
+  .topbar-credit{font-size:11.5px;font-weight:700;color:#9db2ce;line-height:1.4}
+  .topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .topbar-coords{display:flex;align-items:center;gap:6px;font-size:12px;color:#c7e9ff;
+    background:#0b1324;border:1px solid var(--border);border-radius:999px;padding:4px 10px;white-space:nowrap}
+  .topbar-coords .coords{font-family:ui-monospace, Menlo, Consolas, "Courier New", monospace;font-weight:800}
+  @media (max-width:760px){ .topbar-coords{display:none} }
+
+  #app{display:grid;grid-template-columns:clamp(270px,30vw,390px) 1fr 420px;grid-template-rows:1fr;height:auto;flex:1;min-height:0;transition:grid-template-columns .25s ease; overflow:hidden; position:relative}
   #map{width:100%;height:100%; position:sticky; top:0; }
   #app.hide-main{grid-template-columns:clamp(270px,30vw,390px) 1fr 0}
   #app.hide-main #mainPane{width:0;padding:0;border:0;overflow:hidden}
@@ -190,6 +208,7 @@
     border-radius:8px; padding:4px 6px; font-size:12px; min-height:28px; }
   .mini-xy button{ background:var(--accent); color:#063b35; border:0; border-radius:8px;
     padding:4px 8px; cursor:pointer; font-weight:800; min-height:28px; }
+  .mini-xy button.mini-clear{ background:#7c2d12; color:#fff; border:1px solid #5b1f0d; }
 
   /* ثبت عنوان لوحة البحث عند التمرير */
   #leftPane .pane{ position:sticky; top:0; z-index:5; background:var(--panel); }
@@ -262,13 +281,13 @@
   }
 /* === قياس: شريط أدوات عائم === */
 .measure-toggle{
-  position:absolute; top:50px; left:45px; z-index:1200;
+  position:static; z-index:1200;
   background:#10b981; color:#063b35; border:0; border-radius:10px;
   padding:8px 12px; font-weight:900; cursor:pointer;
   box-shadow:0 2px 10px rgba(0,0,0,.3), inset 0 0 0 1px #0e8f73;
 }
 .measure-panel{
-  position:absolute; top:58px; left:12px; z-index:1200; width:260px;
+  position:absolute; top:calc(100% + 6px); left:12px; z-index:1200; width:260px;
   background:#0b1324; color:#eaf3ff; border:1px solid #1c2a4e; border-radius:14px;
   display:none; box-shadow:0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px #0d223f;
 }
@@ -287,14 +306,15 @@
   @media print{
     body{ background:#fff; color:#000 }
     #app{ display:block; height:auto }
-    aside.side, .edge-toggle, .layer-toast, .mapFabWrap, .leaflet-control-container, .dev-credit { display:none !important }
+    aside.side, .edge-toggle, .layer-toast, .mapFabWrap, .leaflet-control-container, .dev-credit, .topbar { display:none !important }
     #map{ height:92vh !important }
     .print-band{ display:block }
     .print-legend-overlay{ display:flex !important; align-items:center; }
   }
 
   @media (max-width:980px){
-    #app{grid-template-columns:1fr;grid-template-rows:auto 56vh auto;height:auto}
+    body{height:auto;min-height:100vh;overflow:auto}
+    #app{grid-template-columns:1fr;grid-template-rows:auto 56vh auto;height:auto;flex:0 0 auto;min-height:0}
     #map{height:56vh;order:2}
     aside.left{order:1}
     aside.right{order:3}
@@ -387,6 +407,7 @@
   * { page-break-before: avoid; page-break-after: avoid; }
 }
 .print-only { display: none; }
+.printing .topbar { display:none !important; }
 </style>
 
 
@@ -486,6 +507,7 @@
     <div id="miniXY" class="mini-xy">
       <input id="miniCoord" type="text" placeholder="X,Y أو X Y" />
       <button id="miniGo" title="انتقال"><i class="fa-solid fa-location-dot"></i></button>
+      <button id="miniClear" class="mini-clear" title="تفريغ وإعادة البحث بإحداثيات جديدة"><i class="fa-solid fa-eraser"></i></button>
     </div>
 
     <!-- شريط فهرس الطبقات (يظهر فقط في الطباعة) -->
@@ -502,7 +524,6 @@
         <div class="logo"></div>
         <div>
           <div class="title">خريطة أحواض مادبا</div>
-          <div class="subtitle">مديرية أشغال مادبا — إعداد وتصميم م. أحمد الزن</div>
         </div>
       </div>
     </div>
@@ -588,13 +609,9 @@
     </div>
   </div>
 </div>
-
-
-<!-- شارة المطوّر (على الشاشة) -->
-<div class="dev-credit" aria-hidden="true">
-  <i class="ico fa-solid fa-code"></i><span class="name">المطور: م. أحمد الزن</span><span class="sep">|</span>
-  <i class="ico fa-solid fa-location-crosshairs"></i><span id="mouseCoords" class="coords">X: — , Y: —</span>
+  </aside>
 </div>
+
 
 <!-- أشرطة الطباعة -->
 <div id="printHeader" class="print-band top">
@@ -618,34 +635,42 @@ try{ requireAuth(); }catch(e){ console.warn('auth disabled:', e); }
 </script>
 
 
-<header style="display:flex;justify-content:space-between;align-items:center;
-               background:#0f172a;color:#fff;padding:8px 16px;position:absolute;top:0;left:0;right:0;z-index:1000">
-  <div style="font-weight:bold">خريطة مادبا</div>
-  <div>
-    <button onclick="location.href='Madaba.html'" 
-            style="margin-left:8px;background:#2563eb;color:#fff;
-                   border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
+<header class="topbar">
+  <div class="topbar-brand">
+    <img class="topbar-logo" src="data/moh_logo.png" alt="شعار وزارة الأشغال العامة والإسكان">
+    <div>
+      <div class="topbar-title">خريطة مادبا</div>
+      <div class="topbar-credit">مديرية أشغال مادبا — إعداد وتصميم م. أحمد الزن</div>
+    </div>
+  </div>
+
+  <div class="topbar-coords" title="إحداثيات مؤشر الفأرة على الخريطة">
+    <i class="ico fa-solid fa-location-crosshairs"></i>
+    <span id="mouseCoords" class="coords">X: — , Y: —</span>
+  </div>
+
+  <div class="topbar-actions">
+    <button onclick="location.href='Madaba.html'"
+            style="background:#2563eb;color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
       ← رجوع
     </button>
-    <button onclick="logout()" 
-            style="background:#ef4444;color:#fff;
-                   border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
+    <button onclick="logout()"
+            style="background:#ef4444;color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
       تسجيل خروج
     </button>
     <button id="measureToggle" class="measure-toggle" title="قياس" onclick="document.getElementById('measurePanel').classList.toggle('open')">أدوات القياس</button>
-<div id="measurePanel" class="measure-panel" role="dialog" aria-label="أدوات القياس">
-  <div class="row">
-    <button id="mDist"  class="btn" title="قياس مسافة">مسافة</button>
-    <button id="mArea"  class="btn" title="قياس مساحة">مساحة</button>
-    <button id="mCoord" class="btn" title="إحداثيات">إحداثيات</button>
-  </div>
-  <div class="row">
-    <button id="mFinish" class="btn">إنهاء</button>
-    <button id="mClear"  class="btn">تفريغ</button>
-  </div>
-  <div id="mInfo" class="info">اختر أداة، ثم انقر على الخريطة.</div>
-</div>
-
+    <div id="measurePanel" class="measure-panel" role="dialog" aria-label="أدوات القياس">
+      <div class="row">
+        <button id="mDist"  class="btn" title="قياس مسافة">مسافة</button>
+        <button id="mArea"  class="btn" title="قياس مساحة">مساحة</button>
+        <button id="mCoord" class="btn" title="إحداثيات">إحداثيات</button>
+      </div>
+      <div class="row">
+        <button id="mFinish" class="btn">إنهاء</button>
+        <button id="mClear"  class="btn">تفريغ</button>
+      </div>
+      <div id="mInfo" class="info">اختر أداة، ثم انقر على الخريطة.</div>
+    </div>
   </div>
 </header>
 
@@ -1605,6 +1630,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('clearXY2').addEventListener('click', clearAll);
+
+  /* تفريغ شريط البحث السريع لإعادة البحث بإحداثيات جديدة */
+  document.getElementById('miniClear')?.addEventListener('click',()=>{
+    const inp = document.getElementById('miniCoord');
+    if(inp) inp.value = '';
+    clearAll();
+    if(inp){ inp.focus(); try{ inp.select(); }catch(e){} }
+  });
 
   document.getElementById('goXY').addEventListener('click',()=>{
     const xs=document.getElementById('xIn').value.trim().replace(',','.');
