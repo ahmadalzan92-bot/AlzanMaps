@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>خريطة أحواض مادبا – مديرية اشغال محافظة مأدبا</title>
+<link rel="icon" type="image/png" href="data/moh_logo.png"/>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -182,7 +183,7 @@
   .mini-xy{ position:absolute; top:12px; left:200px; z-index:1000; display:flex; gap:6px;
     background:rgba(11,19,46,.88); border:1px solid var(--border); border-radius:12px;
     padding:6px; backdrop-filter:blur(6px); box-shadow:0 2px 10px rgba(0,0,0,.35); }
-  .mini-xy input{ width:96px; background:#0a1429; border:1px solid var(--border); color:var(--text);
+  .mini-xy input{ width:230px; background:#0a1429; border:1px solid var(--border); color:var(--text);
     border-radius:8px; padding:4px 6px; font-size:12px; min-height:28px; }
   .mini-xy button{ background:var(--accent); color:#063b35; border:0; border-radius:8px;
     padding:4px 8px; cursor:pointer; font-weight:800; min-height:28px; }
@@ -475,8 +476,7 @@
 
     <!-- شريط بحث إحداثيات صغير -->
     <div id="miniXY" class="mini-xy">
-      <input id="miniX" type="text" placeholder="X (Lon)" />
-      <input id="miniY" type="text" placeholder="Y (Lat)" />
+      <input id="miniCoord" type="text" placeholder="X,Y أو X Y" />
       <button id="miniGo" title="انتقال"><i class="fa-solid fa-location-dot"></i></button>
     </div>
 
@@ -1361,18 +1361,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const miniGo=document.getElementById('miniGo');
   if(miniGo){
     miniGo.addEventListener('click',()=>{
-      const xs=document.getElementById('miniX').value.trim().replace(',','.');
-      const ys=document.getElementById('miniY').value.trim().replace(',','.');
-      const x=Number(xs), y=Number(ys);
-      if(!isFinite(x)||!isFinite(y)) return;
-      goToXY(x,y);
-      document.getElementById('f_x').value=x;
-      document.getElementById('f_y').value=y;
+      const raw=document.getElementById('miniCoord').value.trim();
+      const parts=raw.split(/[,\s]+/).filter(Boolean);
+      if(parts.length<2) return;
+      const a=Number(parts[0].replace(',','.'));
+      const b=Number(parts[1].replace(',','.'));
+      if(!isFinite(a)||!isFinite(b)) return;
+      let lat, lon;
+      if(Math.abs(a)<=90 && Math.abs(b)<=180 && !(Math.abs(b)<=90 && Math.abs(a)>90)){ lat=a; lon=b; }
+      else if(Math.abs(b)<=90 && Math.abs(a)<=180){ lat=b; lon=a; }
+      else { lat=b; lon=a; }
+      goToXY(lon,lat);
+      document.getElementById('f_x').value=lon;
+      document.getElementById('f_y').value=lat;
     });
-    ['miniX','miniY'].forEach(id=>{
-      document.getElementById(id)?.addEventListener('keydown',e=>{
-        if(e.key==='Enter') miniGo.click();
-      });
+    document.getElementById('miniCoord')?.addEventListener('keydown',e=>{
+      if(e.key==='Enter') miniGo.click();
     });
   }
 });
