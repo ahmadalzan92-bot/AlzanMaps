@@ -1108,7 +1108,7 @@ map.on('draw:edited', updateLength);
     const key=fileKeyFromUrl(fileUrl), display=(NAME_MAP[key]?.name)||niceName(key), desc=(NAME_MAP[key]?.desc)||display;
     const meta=summarizeGeoJSON(geojson);
     const stylePair=STYLE_MAP[key]||FALLBACK_PALETTE[LAYERS.size%FALLBACK_PALETTE.length];
-const defaultOn=new Set(['B Madaba.kmz','MAD_BALDIEAT.kmz','jor.kmz']);
+const defaultOn=new Set(['حدود محافظة.kmz','MAD_BALDIEAT.kmz','jor.kmz']);
     const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:.25,show:defaultOn.has(key)};
     const gj=L.geoJSON(geojson,{
       style:()=>({color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity}),
