@@ -1123,7 +1123,7 @@ const defaultOn=new Set(['B Madaba.kmz','MAD_BALDIEAT.kmz','jor.kmz']);
     LAYERS.set(fileUrl,{layer:gj,opts,meta});
     renderLayerCard(fileUrl,display,meta,opts,desc);
     updatePrintLegendOverlay(); /* تحديث الفهرس بعد إضافة الطبقة */
-    if(opts.show){ try{map.fitBounds(gj.getBounds(),{padding:[10,10]});}catch(e){} }
+    if(opts.show && !userNavigated){ try{map.fitBounds(gj.getBounds(),{padding:[10,10]});}catch(e){} }
   }
   (async()=>{
     for(const f of AUTO_FILES){try{await loadKmlOrKmz(f);}catch(e){console.error('KMZ/KML load fail',f,e);}}
@@ -1561,7 +1561,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* XY */
   let xyMarker=null, xyCircle=null;
+  let userNavigated=false;
   function goToXY(x,y){
+    userNavigated=true;
     if(Math.abs(x)>180||Math.abs(y)>90){ showErr(document.getElementById('xyErr'),'إحداثيات خارج مدى WGS84.'); return; }
     const latlng=L.latLng(y,x);
     const r=Math.max(0,Number(document.getElementById('rad').value||0));
