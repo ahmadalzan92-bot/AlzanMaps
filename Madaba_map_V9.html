@@ -1013,9 +1013,13 @@ map.on('draw:edited', updateLength);
   // مؤشّر الهدف (ذهبي)
   let targetMarker=null;
   function showTargetAt(latlng){
+    // إزالة أي دبوس قديم لتجنب التكرار
+    const oldPins=[];
+    map.eachLayer(l=>{ if(l && l._icon && l._icon.classList && l._icon.classList.contains('target-pin')) oldPins.push(l); });
+    oldPins.forEach(l=>{ try{ map.removeLayer(l); }catch(e){} });
+    targetMarker=null;
     const icon=L.divIcon({className:'target-pin target-pulse',iconSize:[38,38],iconAnchor:[19,19]});
-    if(!targetMarker){ targetMarker=L.marker(latlng,{icon,zIndexOffset:9999}).addTo(map); }
-    else { targetMarker.setIcon(icon); targetMarker.setLatLng(latlng); }
+    targetMarker=L.marker(latlng,{icon,zIndexOffset:9999}).addTo(map);
     clearTimeout(showTargetAt._t); showTargetAt._t=setTimeout(()=>{ if(targetMarker){ targetMarker.setOpacity(0.95); } }, 800);
   }
   function clearTarget(){ if(targetMarker){ map.removeLayer(targetMarker); targetMarker=null; } }
