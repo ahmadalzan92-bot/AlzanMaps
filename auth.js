@@ -13,10 +13,10 @@ window.requireAuth = function(){
   try{
     const s = localStorage.getItem(KEY);
     if(!s) throw 0;
-  }catch{ location.href = 'login.html'; }
+  }catch{ location.href = 'index.html'; }
 };
 
 window.logout = function(){
   localStorage.removeItem(KEY);
-  location.href = 'login.html';
+  location.href = 'index.html';
 };

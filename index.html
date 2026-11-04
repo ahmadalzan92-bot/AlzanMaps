@@ -74,7 +74,7 @@
     const res = window.tryLogin(u.value.trim(), p.value);
     if(res && res.ok){
       err.style.display = 'none';
-      location.href = 'madaba.html'; // ← لوحة النظام بعد الدخول
+      location.href = 'Madaba.html'; // ← لوحة النظام بعد الدخول
     } else {
       err.textContent = (res && res.msg) ? res.msg : 'تعذر تسجيل الدخول.';
       err.style.display = 'block';
