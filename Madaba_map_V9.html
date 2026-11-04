@@ -155,7 +155,7 @@
   #f_jur option{ color:#ff4d4f !important; font-weight:800 }
 
   /* أزرار مثبتة أعلى الخريطة */
-  .mapFabWrap{ position:fixed; top:12px; right:12px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
+  .mapFabWrap{ position:absolute; top:12px; right:12px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
   .mapFab{
     background:#0b1324; border:1px solid var(--border);
     color:#cfe6ff; border-radius:999px; padding:8px 12px;
@@ -183,7 +183,7 @@
   .layer-toast.show{opacity:1; transform:translateY(0);}
 
   /* شريط بحث إحداثيات صغير على الخريطة */
-  .mini-xy{ position:fixed; top:12px; left:200px; z-index:1000; display:flex; gap:6px;
+  .mini-xy{ position:absolute; top:12px; left:200px; z-index:1000; display:flex; gap:6px;
     background:rgba(11,19,46,.88); border:1px solid var(--border); border-radius:12px;
     padding:6px; backdrop-filter:blur(6px); box-shadow:0 2px 10px rgba(0,0,0,.35); }
   .mini-xy input{ width:230px; background:#0a1429; border:1px solid var(--border); color:var(--text);
@@ -257,7 +257,7 @@
   }
 /* === قياس: شريط أدوات عائم === */
 .measure-toggle{
-  position:fixed; top:13px; left:45px; z-index:1200;
+  position:absolute; top:13px; left:45px; z-index:1200;
   background:#10b981; color:#063b35; border:0; border-radius:10px;
   padding:8px 12px; font-weight:900; cursor:pointer;
   box-shadow:0 2px 10px rgba(0,0,0,.3), inset 0 0 0 1px #0e8f73;
@@ -1080,7 +1080,7 @@ map.on('draw:edited', updateLength);
 
   /* تحميل الطبقات تلقائياً */
   const AUTO_FILES=['data/B Madaba.kmz','data/B Name.kmz','data/basin boundry.kmz','data/g1.kmz','data/jor.kmz','data/Tanzeem.kmz','data/MAD_JVB.kmz','data/MAD_BALDIEAT.kmz','data/حدود محافظة.kmz'];
-  const NAME_MAP={'B Madaba.kmz':{name:'حد محافظة',desc:'حد محافظة'},'B Name.kmz':{name:'اسم الحوض',desc:'اسم الحوض'},'basin boundry.kmz':{name:'حد حوض',desc:'حد حوض'},'g1.kmz':{name:'حدود البلدية الادارية',desc:'حدود البلدية الادارية'},'jor.kmz':{name:'حدود سلطة وادي الاردن',desc:'حدود سلطة وادي الاردن'},'Tanzeem.kmz':{name:'حدود التنظيم المصدق',desc:'حدود التنظيم المصدق'},'MAD_JVB.kmz':{name:'مناطق سلطة وادي الأردن',desc:'مناطق سلطة وادي الأردن'},'MAD_BALDIEAT.kmz':{name:'حدود بلديات مادبا',desc:'الحدود الإدارية للبلديات'},'حدود محافظة.kmz':{name:'حدود محافظة مادبا',desc:'حدود محافظة مادبا'}};
+  const NAME_MAP={'B Madaba.kmz':{name:'حد محافظة',desc:'حد محافظة'},'B Name.kmz':{name:'اسم الحوض',desc:'اسم الحوض'},'basin boundry.kmz':{name:'حد حوض',desc:'حد حوض'},'g1.kmz':{name:'حدود البلدية الادارية',desc:'حدود البلدية الادارية'},'jor.kmz':{name:'حدود سلطة وادي الاردن',desc:'حدود سلطة وادي الاردن'},'Tanzeem.kmz':{name:'حدود التنظيم المصدق',desc:'حدود التنظيم المصدق'},'MAD_JVB.kmz':{name:'مناطق سلطة وادي الأردن',desc:'مناطق سلطة وادي الأردن'},'MAD_BALDIEAT.kmz':{name:'حدود بلديات مادبا',desc:'الحدود الإدارية للبلديات'},'حدود محافظة.kmz':{name:'حدود مادبا جديد',desc:'حدود مادبا جديد'}};
   const STYLE_MAP={'B Madaba.kmz':{stroke:'#147d6f',fill:'#8ee3d6'},'B Name.kmz':{stroke:'#0ea5e9',fill:'#93c5fd'},'basin boundry.kmz':{stroke:'#a855f7',fill:'#d8b4fe'},'g1.kmz':{stroke:'#e11d48',fill:'#fecaca'},'jor.kmz':{stroke:'#f59e0b',fill:'#fde68a'},'Tanzeem.kmz':{stroke:'#16a34a',fill:'#bbf7d0'},'MAD_JVB.kmz':{stroke:'#0d9488',fill:'#99f6e4'},'MAD_BALDIEAT.kmz':{stroke:'#7c3aed',fill:'#ddd6fe'},'حدود محافظة.kmz':{stroke:'#1f2937',fill:'#9ca3af'}};
   const FALLBACK_PALETTE=[{stroke:'#7c3aed',fill:'#c4b5fd'},{stroke:'#06b6d4',fill:'#a5f3fc'},{stroke:'#d97706',fill:'#fcd34d'},{stroke:'#be185d',fill:'#fbcfe8'}];
   const BASE_WEIGHT=3; const LAYERS=new Map();
