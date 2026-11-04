@@ -193,6 +193,10 @@
 
   /* ثبت عنوان لوحة البحث عند التمرير */
   #leftPane .pane{ position:sticky; top:0; z-index:5; background:var(--panel); }
+  /* شريط تمرير فقط للقسم الأيسر */
+  #leftPane .scroll{ overflow:auto; }
+  #mainPane .scroll{ overflow:auto; scrollbar-width:none; -ms-overflow-style:none; }
+  #mainPane .scroll::-webkit-scrollbar{ display:none; }
   .dev-credit{
     position:fixed; bottom:12px; left:56px; z-index:1200;
     background:linear-gradient(135deg,#0b1324,#0e1b36); border:1px solid var(--border);
