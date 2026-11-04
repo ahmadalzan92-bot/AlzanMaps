@@ -1362,7 +1362,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       document.getElementById('measurePanel')?.classList.toggle('open');
     });
   }
-});
+
+  document.getElementById('btnOpenRoadsEditor')?.addEventListener('click', openRoadsEditor);
+  document.getElementById('btnOpenRoadsEditor')?.addEventListener('click', openRoadsEditor);
   document.getElementById('btnAddRoadRow')?.addEventListener('click', addEmptyRoadRow);
   document.getElementById('btnSaveRoadsGrid')?.addEventListener('click', saveRoadsGrid);
   document.getElementById('btnCloseRoadsGrid')?.addEventListener('click', closeRoadsEditor);
