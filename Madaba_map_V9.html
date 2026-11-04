@@ -1031,7 +1031,7 @@ map.on('draw:edited', updateLength);
     const desired = L.point(size.x*vx, size.y*vy).add(L.point(offset[0], offset[1]));
     const current = map.latLngToContainerPoint(latlng);
     const delta = current.subtract(desired);
-    map.panBy(delta, {animate:true, duration:0.45});
+    map.panBy(delta, {animate:false});
     showTargetAt(latlng);
     lastSelectedCenter = latlng;
   }
