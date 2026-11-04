@@ -178,6 +178,15 @@
   }
   .layer-toast.show{opacity:1; transform:translateY(0);}
 
+  /* شريط بحث إحداثيات صغير على الخريطة */
+  .mini-xy{ position:absolute; top:12px; left:12px; z-index:1000; display:flex; gap:6px;
+    background:rgba(11,19,46,.88); border:1px solid var(--border); border-radius:12px;
+    padding:6px; backdrop-filter:blur(6px); box-shadow:0 2px 10px rgba(0,0,0,.35); }
+  .mini-xy input{ width:96px; background:#0a1429; border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:4px 6px; font-size:12px; min-height:28px; }
+  .mini-xy button{ background:var(--accent); color:#063b35; border:0; border-radius:8px;
+    padding:4px 8px; cursor:pointer; font-weight:800; min-height:28px; }
+
   /* شارة المطوّر + الإحداثيات (على الشاشة فقط) */
   .dev-credit{
     position:fixed; bottom:12px; left:56px; z-index:1200;
@@ -463,6 +472,13 @@
       </button>
     </div>
     <div id="layerToast" class="layer-toast" role="status" aria-live="polite"></div>
+
+    <!-- شريط بحث إحداثيات صغير -->
+    <div id="miniXY" class="mini-xy">
+      <input id="miniX" type="text" placeholder="X (Lon)" />
+      <input id="miniY" type="text" placeholder="Y (Lat)" />
+      <button id="miniGo" title="انتقال"><i class="fa-solid fa-location-dot"></i></button>
+    </div>
 
     <!-- شريط فهرس الطبقات (يظهر فقط في الطباعة) -->
     <div id="printLegendOverlay" class="print-legend-overlay" aria-hidden="true">
@@ -1085,7 +1101,8 @@ map.on('draw:edited', updateLength);
     const key=fileKeyFromUrl(fileUrl), display=(NAME_MAP[key]?.name)||niceName(key), desc=(NAME_MAP[key]?.desc)||display;
     const meta=summarizeGeoJSON(geojson);
     const stylePair=STYLE_MAP[key]||FALLBACK_PALETTE[LAYERS.size%FALLBACK_PALETTE.length];
-    const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:.25,show:true};
+const defaultOn=new Set(['MAD_BALDIEAT.kmz','jor.kmz']);
+    const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:.25,show:defaultOn.has(key)};
     const gj=L.geoJSON(geojson,{
       style:()=>({color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity}),
       pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:4,color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:.9}),
@@ -1098,10 +1115,11 @@ map.on('draw:edited', updateLength);
         layer.on('click',(ev)=>showLayerToastAt(ev.latlng,display));
       }
     }).addTo(map);
+    if(!opts.show){ map.removeLayer(gj); }
     LAYERS.set(fileUrl,{layer:gj,opts,meta});
     renderLayerCard(fileUrl,display,meta,opts,desc);
     updatePrintLegendOverlay(); /* تحديث الفهرس بعد إضافة الطبقة */
-    try{map.fitBounds(gj.getBounds(),{padding:[10,10]});}catch(e){}
+    if(opts.show){ try{map.fitBounds(gj.getBounds(),{padding:[10,10]});}catch(e){} }
   }
   (async()=>{
     for(const f of AUTO_FILES){try{await loadKmlOrKmz(f);}catch(e){console.error('KMZ/KML load fail',f,e);}}
@@ -1339,6 +1357,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSaveRoadsGrid')?.addEventListener('click', saveRoadsGrid);
   document.getElementById('btnCloseRoadsGrid')?.addEventListener('click', closeRoadsEditor);
   document.getElementById('roadsEditorBackdrop')?.addEventListener('click', closeRoadsEditor);
+
+  const miniGo=document.getElementById('miniGo');
+  if(miniGo){
+    miniGo.addEventListener('click',()=>{
+      const xs=document.getElementById('miniX').value.trim().replace(',','.');
+      const ys=document.getElementById('miniY').value.trim().replace(',','.');
+      const x=Number(xs), y=Number(ys);
+      if(!isFinite(x)||!isFinite(y)) return;
+      goToXY(x,y);
+      document.getElementById('f_x').value=x;
+      document.getElementById('f_y').value=y;
+    });
+    ['miniX','miniY'].forEach(id=>{
+      document.getElementById(id)?.addEventListener('keydown',e=>{
+        if(e.key==='Enter') miniGo.click();
+      });
+    });
+  }
 });
 
 
