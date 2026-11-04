@@ -1572,7 +1572,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else { xyCircle.setLatLng(latlng); xyCircle.setRadius(r);}
     } else if(xyCircle){ map.removeLayer(xyCircle); xyCircle=null; }
 
-    map.once('moveend', ()=> { setTimeout(()=>centerAligned(latlng), 120); });
+    map.once('moveend', ()=> { setTimeout(()=>centerAligned(latlng, {vy:0.35}), 120); });
     map.setView(latlng, Math.max(map.getZoom(), 16), {animate:true, duration:0.6});
   }
   function clearMarker(){ if(xyCircle){ map.removeLayer(xyCircle); xyCircle=null; } clearTarget(); }
