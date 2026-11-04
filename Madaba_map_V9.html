@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>خريطة أحواض مادبا – مديرية اشغال محافظة مأدبا</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- KML/KMZ -->
+<script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.7.0/dist/togeojson.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<!-- Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+<!-- Leaflet.draw -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<style>
+  :root{
+    --panel:#0f172a; --card:#0b132e; --text:#e7f1ff; --muted:#9db2ce;
+    --border:#1c2a4e; --chip:#243657; --accent:#10b981;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#061022;color:var(--text);
+       font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Kufi Arabic","Noto Sans Arabic",Tahoma,Arial,sans-serif}
+
+  #app{display:grid;grid-template-columns:clamp(270px,30vw,390px) 1fr 420px;height:100vh;transition:grid-template-columns .25s ease}
+  #map{width:100%;height:100%; position:relative}
+  #app.hide-main{grid-template-columns:clamp(270px,30vw,390px) 1fr 0}
+  #app.hide-main #mainPane{width:0;padding:0;border:0;overflow:hidden}
+
+  aside.side{background:var(--panel);display:flex;flex-direction:column;min-width:270px}
+  aside.left{border-right:1px solid var(--border)}
+  aside.right{border-left:1px solid var(--border)}
+  .pane{padding:14px 14px 8px}
+
+  .hdr{display:flex;align-items:center;gap:.6rem}
+  .logo{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#00e0ff77,#22c55e66)}
+  .title{font-weight:800;font-size:17px}
+  .subtitle{color:var(--muted);font-size:12px;margin-top:2px}
+
+  /* شعار الوزارة في رأس لوحة البحث */
+  .logo-moh{
+    width:42px; height:42px;
+    object-fit:contain;
+    border-radius:10px;
+    background:#fff;
+    padding:4px;
+    box-shadow:0 0 0 1px #e5e7eb, 0 2px 8px rgba(0,0,0,.25);
+  }
+
+  .scroll{overflow:auto;padding:0 10px 12px}
+  .scroll::-webkit-scrollbar{width:10px}
+  .scroll::-webkit-scrollbar-track{background:#0a1123}
+  .scroll::-webkit-scrollbar-thumb{background:#2a3a5f;border-radius:10px}
+  .scroll::-webkit-scrollbar-thumb:hover{background:#3a4a7a}
+
+  .section{margin:8px 0 12px;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .section>button.secHead{
+    all:unset; display:flex; align-items:center; gap:.6rem; width:100%;
+    padding:10px; cursor:pointer; border-bottom:1px solid var(--border); font-size:15px;
+  }
+  .secBody{padding:10px; display:block}
+  .secBody.collapsed{display:none}
+
+  .field{display:flex;flex-direction:column;gap:6px;background:#0a1429;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:10px}
+  .field label{font-size:.9rem;color:var(--muted);display:flex;align-items:center;gap:.4rem}
+  .field input, .field select{
+    width:100%; background:#0a1429;border:1px solid var(--border);border-radius:10px;
+    color: var(--text);padding:.6rem .65rem;min-height:40px
+  }
+
+  .infoList{display:flex;flex-direction:column;gap:8px}
+  .infoItem{background:#081426;border:1px solid var(--border);border-radius:12px;padding:8px 10px;font-size:.95rem;cursor:pointer}
+  .infoItem:hover{outline:1px solid #2563eb}
+
+  .btnRow{display:flex;flex-wrap:wrap;gap:8px}
+  .btn{cursor:pointer;background:#223255;border:1px solid var(--border);border-radius:10px;padding:.5rem .7rem;color:#cfe6ff;font-size:.9rem;display:inline-flex;align-items:center;gap:.4rem}
+  .btn.primary{background:#1a9b6f;border-color:#167b58}
+  .btn.danger{background:#7c2d12;border-color:#5b1f0d}
+
+  /* مؤشّر هدف ذهبي عصري */
+  .target-pin{
+    position:relative;width:38px;height:38px;border-radius:999px;
+    background:rgba(255,215,0,.14); border:2px solid #FFD700;
+    box-shadow:0 0 0 6px rgba(255,215,0,.12), 0 0 18px rgba(255,215,0,.55);
+  }
+  .target-pin:before,.target-pin:after{
+    content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:#FFD700;
+  }
+  .target-pin:before{ width:22px; height:3px; border-radius:2px; }
+  .target-pin:after{ width:3px; height:22px; border-radius:2px; }
+  .target-pulse{ animation:pinpulse 1.4s ease-out infinite; }
+  @keyframes pinpulse{
+    0%{ box-shadow:0 0 0 6px rgba(255,215,0,.18), 0 0 18px rgba(255,215,0,.6); }
+    100%{ box-shadow:0 0 0 26px rgba(255,215,0,0), 0 0 18px rgba(255,215,0,0); }
+  }
+
+  /* زر إظهار/إخفاء القائمة اليمنى */
+  .edge-toggle{
+    position:fixed; left:0; bottom:58px; z-index:1100;
+    background:var(--accent); color:#063b35;
+    border:none; border-radius:0 8px 8px 0;
+    width:40px; min-height:44px; padding:4px 6px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25), inset 0 0 0 1px #0e8f73;
+    cursor:pointer; font-weight:800;
+  }
+  .edge-toggle .ico{font-size:16px; line-height:1}
+  .edge-toggle .lbl{font-size:11px; user-select:none}
+
+  /* بطاقات الطبقات */
+  .layerCard{border-bottom:1px dashed var(--border)}
+  .layerHead{display:grid;grid-template-columns:auto 1fr auto auto;gap:.6rem;align-items:center;padding:10px 12px}
+  .swatch{width:18px;height:18px;border-radius:4px;border:1px solid #0003;box-shadow:0 0 0 2px #fff1 inset}
+  .layerName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800}
+  .desc{font-size:12px;color:var(--muted)}
+  .toggleBox{display:flex;align-items:center;gap:.35rem}
+  .toggleBox input{width:18px;height:18px;accent-color:#16a34a;cursor:pointer}
+  .collapseBtn{cursor:pointer;background:#223255;border:1px solid var(--border);border-radius:10px;padding:.25rem .5rem;color:#cfe6ff;font-size:.78rem;display:flex;align-items:center;gap:.35rem}
+  .collapseBtn i{transition:transform .2s ease}
+  .layerBody{display:none;padding:10px 12px 12px;border-top:1px dashed var(--border)}
+  .layerBody.open{display:block}
+  .ctrlRow{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .ctrl{display:flex;align-items:center;gap:.5rem;background:#081426;padding:8px;border:1px solid var(--border);border-radius:12px}
+  .ctrl input[type="color"]{width:36px;height:36px;border:none;background:transparent;cursor:pointer}
+  .ctrl input[type="range"]{width:110px}
+  .presets{grid-column:1 / -1;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:2px}
+  .chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:.25rem .5rem;font-size:.78rem;color:#bfe2ff;cursor:pointer}
+  .chip .box{display:inline-block;width:12px;height:12px;border-radius:3px;margin:0 .35rem;vertical-align:-2px;border:1px solid #0003}
+
+  .basin-label{background:transparent;border:0;box-shadow:none;color:#0b3d3d;font-weight:800;font-size:14px;text-shadow:0 0 2px #fff,0 0 4px #fff}
+  .point-label{background:transparent;border:0;box-shadow:none;color:#083344;font-weight:700;font-size:12px;text-shadow:0 0 2px #fff,0 0 4px #fff}
+
+  /* نتائج البحث */
+  .resultCard{background:#0b1324;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px}
+  .resultCard h4{margin:0 0 6px 0;font-size:14px}
+  .resultMeta{font-size:12px;color:#9db2ce;line-height:1.6}
+  .resultActions{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+
+  /* تمييز حقل الاختصاص */
+  #f_jur{ color:#ff4d4f !important; font-weight:800 }
+  #f_jur option{ color:#ff4d4f !important; font-weight:800 }
+
+  /* أزرار مثبتة أعلى الخريطة */
+  .mapFabWrap{ position:absolute; top:12px; right:12px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
+  .mapFab{
+    background:#0b1324; border:1px solid var(--border);
+    color:#cfe6ff; border-radius:999px; padding:8px 12px;
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    box-shadow:0 2px 12px rgba(0,0,0,.35), inset 0 0 0 1px #0d223f;
+    font-weight:800; font-size:.95rem;
+  }
+  .mapFab:hover{ outline:1px solid #2563eb; }
+  .mapFab .ico{ font-size:16px; }
+  .mapFab.active{
+    background:#1a9b6f; border-color:#167b58; color:#063b35;
+    box-shadow:0 4px 14px rgba(16,185,129,.35), inset 0 0 0 1px #0e8f73;
+  }
+
+  /* توست اسم الطبقة */
+  .layer-toast{
+    position:absolute; z-index:1000;
+    left:12px; top:12px;
+    background:rgba(13,34,63,.92); border:1px solid var(--border);
+    color:#eaf3ff; padding:8px 12px; border-radius:12px;
+    font-weight:800; box-shadow:0 4px 14px rgba(0,0,0,.35), inset 0 0 0 1px #0d223f;
+    opacity:0; transform:translateY(8px); transition:all .2s ease; pointer-events:none;
+    max-width:min(60vw, calc(100% - 24px)); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .layer-toast.show{opacity:1; transform:translateY(0);}
+
+  /* شارة المطوّر + الإحداثيات (على الشاشة فقط) */
+  .dev-credit{
+    position:fixed; bottom:12px; left:56px; z-index:1200;
+    background:linear-gradient(135deg,#0b1324,#0e1b36); border:1px solid var(--border);
+    color:#9bd7ff; padding:8px 14px; border-radius:999px; font-weight:900;
+    display:flex; align-items:center; gap:10px;
+    box-shadow:0 4px 14px rgba(0,0,0,.35), inset 0 0 0 1px #0d223f;
+    pointer-events:none;
+  }
+  .dev-credit .ico{ font-size:14px; }
+  .dev-credit .name{ color:#e7f1ff; letter-spacing:.2px; }
+  .dev-credit .sep{ opacity:.35 }
+  .dev-credit .coords{ font-family:ui-monospace, Menlo, Consolas, "Courier New", monospace; font-weight:800; color:#c7e9ff }
+
+  /* وميض حدود الحوض المؤقت */
+  .leaflet-overlay-pane .pulse-stroke{ stroke-linecap:round; animation: dash-move 1.2s linear infinite; }
+  @keyframes dash-move { to { stroke-dashoffset: -28; } }
+
+  /* أشرطة الطباعة */
+  .print-band{ display:none; position:fixed; left:0; right:0; z-index:1300; background:#fff; color:#0b1324; border:0; padding:12px 18px; font-weight:900; box-shadow:0 2px 0 #e5e7eb; }
+  .print-band.top{ top:0 }
+  .print-band.bottom{ bottom:0 } /* تم إصلاح تموضع التذييل */
+  .print-info{ font-size:12px; color:#1f2937 }
+
+  /* رأس الطباعة */
+  .print-head-wrap{ display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+  .moh-logo{ width:56px; height:auto; object-fit:contain; }
+  .print-head-titles{ line-height:1.25 }
+  .gov-title{ font-size:18px; font-weight:900; letter-spacing:.2px; }
+  .dir-title{ font-size:14px; font-weight:800; color:#374151; }
+  .report-title{ margin-top:4px; font-size:16px; font-weight:900; color:#0b1324; border-top:1px solid #e5e7eb; padding-top:6px; }
+
+  .print-band.bottom .print-info{ font-size:12px; color:#1f2937 }
+  .print-dev{ font-weight:900; font-size:13px; }
+
+  /* ===== شريط فهرس الطبقات للطباعة فقط (صغير وأفقي أسفل الصفحة) ===== */
+  .print-legend-overlay{
+    position:fixed; left:0; right:0; bottom:58px; z-index:1301;
+    display:none; /* يظهر فقط في الطباعة */
+    background:#fff; color:#111827;
+    border-top:1px solid #d1d5db; border-bottom:1px solid #d1d5db;
+    padding:6px 10px;
+    box-shadow:0 -1px 0 #e5e7eb, 0 -2px 6px rgba(0,0,0,.05);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .print-legend-overlay .plg-head{
+    display:flex; align-items:center; gap:6px;
+    font-weight:900; font-size:12px;
+    margin-inline-end:10px;
+  }
+  .print-legend-overlay .plg-body{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px;
+  }
+  .print-legend-overlay .plg-item{
+    display:flex; align-items:center; gap:6px; padding:2px 0;
+  }
+  .print-legend-overlay .plg-swatch{
+    width:12px; height:12px; border-radius:3px;
+    background:linear-gradient(135deg, var(--fill,#e5e7eb) 60%, var(--stroke,#111827) 0);
+    box-shadow:inset 0 0 0 2px var(--stroke,#111827);
+  }
+  .print-legend-overlay .plg-name{
+    font-weight:800; font-size:11px; white-space:nowrap;
+  }
+/* === قياس: شريط أدوات عائم === */
+.measure-toggle{
+  position:absolute; top:13px; left:45px; z-index:1200;
+  background:#10b981; color:#063b35; border:0; border-radius:10px;
+  padding:8px 12px; font-weight:900; cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.3), inset 0 0 0 1px #0e8f73;
+}
+.measure-panel{
+  position:absolute; top:58px; left:12px; z-index:1200; width:260px;
+  background:#0b1324; color:#eaf3ff; border:1px solid #1c2a4e; border-radius:14px;
+  display:none; box-shadow:0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px #0d223f;
+}
+.measure-panel.open{ display:block }
+.measure-panel .row{ display:flex; gap:8px; padding:10px }
+.measure-panel .btn{
+  flex:1; background:#223255; color:#cfe6ff; border:1px solid #1c2a4e;
+  border-radius:10px; padding:8px; cursor:pointer; font-weight:800; text-align:center;
+}
+.measure-panel .btn.active{ background:#1a9b6f; border-color:#167b58; color:#063b35 }
+.measure-panel .info{ padding:8px 10px; border-top:1px solid #1c2a4e; font-size:13px; color:#9db2ce }
+.measure-marker{ background:#fff; border:2px solid #2563eb; width:10px; height:10px; border-radius:999px }
+
+  /* إظهار قسري أثناء الطباعة أو عند إضافة صنف printing */
+  .printing .print-legend-overlay{ display:flex !important; }
+  @media print{
+    body{ background:#fff; color:#000 }
+    #app{ display:block; height:auto }
+    aside.side, .edge-toggle, .layer-toast, .mapFabWrap, .leaflet-control-container, .dev-credit { display:none !important }
+    #map{ height:92vh !important }
+    .print-band{ display:block }
+    .print-legend-overlay{ display:flex !important; align-items:center; }
+  }
+
+  @media (max-width:980px){
+    #app{grid-template-columns:1fr;grid-template-rows:auto 56vh auto;height:auto}
+    #map{height:56vh;order:2}
+    aside.left{order:1}
+    aside.right{order:3}
+    .edge-toggle{left:0;bottom:10px}
+    .dev-credit{left:56px; bottom:10px}
+  }
+  /* === محرر الطرق (نافذة منبثقة) === */
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:1400;
+}
+.modal{
+  position:fixed; inset:auto 50% auto auto; transform:translateX(50%);
+  top:7vh; width:min(980px, 96vw); max-height:86vh; overflow:auto;
+  background:#0b1324; color:#eaf3ff; border:1px solid #1c2a4e; border-radius:16px;
+  box-shadow:0 12px 36px rgba(0,0,0,.45), inset 0 0 0 1px #0d223f; padding:12px; z-index:1450; display:none;
+}
+.modal.open, .modal-backdrop.open{ display:block }
+.modal-head{ display:flex; align-items:center; gap:10px; padding:6px 4px 10px; border-bottom:1px solid #1c2a4e; }
+.modal-title{ font-weight:900; }
+.modal-body{ padding:10px 2px; }
+.modal-foot{ display:flex; gap:8px; justify-content:flex-start; padding-top:10px; border-top:1px solid #1c2a4e; }
+.modal table{ width:100%; border-collapse:collapse; font-size:13px }
+.modal th,.modal td{ padding:6px; border-bottom:1px dashed #1c2a4e }
+.modal input,.modal select,.modal textarea{
+  background:#0a1429; border:1px solid #1c2a4e; color:#eaf3ff; border-radius:8px; padding:6px;
+}
+
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style id="print-final">
+/* screen: hide header/footer */
+@media screen {
+  #printHeader, .print-band.bottom { display: none !important; }
+}
+/* show when JS adds .printing */
+.printing #printHeader,
+.printing .print-band.bottom {
+  display: block !important;
+  visibility: visible !important;
+}
+/* print media: always visible */
+@media print {
+  #printHeader, .print-band.bottom {
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+</style>
+
+
+
+<style id="print-simple-css">
+@media print { .print-only { display:block !important; } }
+.print-only { display:none; }
+</style>
+
+
+
+
+<style id="print-onepage-css">
+@media print {
+  @page { size: A4 portrait; margin: 8mm; }
+  html, body { margin: 0 !important; padding: 0 !important; }
+  #_printHeaderClone { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #fff; }
+  #_printFooterClone { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: #fff; }
+  #map { height: calc(100vh - 160px) !important; page-break-inside: avoid; }
+  /* hide interactive UI and any original/horizontal legends */
+  .leaflet-control, #rightPanel, #mainPanel, .sidebar, .panel, #roadsMiniBar, #lazySpinner, #shpFile, #shpHint,
+  .legend, #printLegend, .print-legend { display: none !important; }
+  /* Show only header/footer clones */
+  #_printHeaderClone.print-only, #_printFooterClone.print-only { display: block !important; }
+  /* Prevent any additional legend clone box */
+  #_printLegendClone { display: none !important; }
+  * { page-break-before: avoid; page-break-after: avoid; }
+}
+.print-only { display: none; }
+</style>
+
+
+</head>
+<body>
+
+<!-- زر إظهار/إخفاء القائمة اليمنى -->
+<button id="mainHandle" class="edge-toggle" aria-label="إظهار/إخفاء قائمة الطبقات">
+  <i class="ico fa-solid fa-angles-right"></i>
+  <span class="lbl">القائمة</span>
+</button>
+
+<div id="app" class="hide-main">
+  <!-- يسار: لوحة البحث -->
+  <aside id="leftPane" class="side left">
+    <div class="pane">
+      <div class="hdr">
+        <!-- شعار الوزارة -->
+        <img class="logo-moh" src="data/moh_logo.png" alt="شعار وزارة الأشغال العامة والإسكان">
+        <div>
+          <div class="title">لوحة البحث</div>
+          <div class="subtitle">اختر حسب اسم الحوض أو استخدم إحداثيات XY</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <!-- البحث عن طريق اسم الحوض -->
+      <div class="section" id="secExcel">
+        <button class="secHead">
+          <i class="fa-solid fa-table"></i> البحث عن طريق اسم الحوض
+          <i style="margin-inline-start:auto" class="fa-solid fa-chevron-up"></i>
+        </button>
+        <div class="secBody">
+          <div class="field">
+            <label><i class="fa-solid fa-water"></i> اسم الحوض</label>
+            <input id="basinInput" list="basinsList" placeholder="اكتب جزءًا من الاسم…">
+            <datalist id="basinsList"></datalist>
+            <div class="btnRow" style="margin-top:6px">
+              <button id="goSel" class="btn primary"><i class="fa-solid fa-location-dot"></i> اذهب</button>
+              <button id="clearAllBtn" class="btn danger"><i class="fa-solid fa-trash"></i> تفريغ الكل</button>
+            </div>
+            <div id="basinMsg" style="display:none;margin-top:6px;color:#fde68a"></div>
+          </div>
+
+          <!-- الحقول -->
+          <div class="field"><label><i class="fa-regular fa-building"></i> المديرية</label><select id="f_dir" disabled><option></option></select></div>
+          <div class="field"><label><i class="fa-solid fa-house-chimney"></i> القرية</label><select id="f_vil" disabled><option></option></select></div>
+          <div class="field"><label><i class="fa-solid fa-flag"></i> موقع الحوض من الحدود الإدارية للبلدية</label><select id="f_admin" disabled><option></option></select></div>
+          <div class="field"><label><i class="fa-solid fa-diagram-project"></i> موقع الحوض من حدود التنظيم المصدق</label><select id="f_planpos" disabled><option></option></select></div>
+          <div class="field"><label><i class="fa-solid fa-map-location-dot"></i> موقع الحوض من حدود سلطة وادي الأردن</label><select id="f_jva" disabled><option></option></select></div>
+          <div class="field"><label><i class="fa-solid fa-circle-check"></i> حالة الحوض من حدود التنظيم المصدق</label><select id="f_planstat" disabled><option></option></select></div>
+          <div class="field"><label><i class="fa-solid fa-gavel"></i> حالة الحوض من حيث الاختصاص</label><select id="f_jur" disabled><option></option></select></div>
+
+          <div class="infoList" id="extraInfo"></div>
+
+          <div class="field"><label><i class="fa-solid fa-location-crosshairs"></i> X (خط الطول)</label><input id="f_x" disabled></div>
+          <div class="field"><label><i class="fa-solid fa-location-crosshairs"></i> Y (خط العرض)</label><input id="f_y" disabled></div>
+
+          <div id="errExcel" style="display:none;color:#fecaca;background:#3b1d1d;border:1px solid #6b1d1d;padding:.55rem .65rem;border-radius:8px;font-size:.9rem"></div>
+        </div>
+      </div>
+
+      <!-- XY -->
+      <div class="section" id="secXY">
+        <button class="secHead">
+          <i class="fa-solid fa-bullseye"></i> البحث بالإحداثيات X,Y (WGS84)
+          <i style="margin-inline-start:auto" class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="secBody collapsed">
+          <div class="field"><label> X (Longitude)</label><input id="xIn" type="text" placeholder="مثال: 35.734"></div>
+          <div class="field"><label> Y (Latitude)</label><input id="yIn" type="text" placeholder="مثال: 31.720"></div>
+          <div class="field"><label>نصف قطر (متر)</label><input id="rad" type="number" min="0" step="10" value="0"></div>
+          <div class="btnRow">
+            <button id="goXY" class="btn primary"><i class="fa-solid fa-location-dot"></i> اذهب</button>
+            <button id="clearXY2" class="btn danger"><i class="fa-solid fa-trash"></i> تفريغ الكل</button>
+          </div>
+          <div id="xyErr" style="display:none;color:#fecaca;background:#3b1d1d;border:1px solid #6b1d1d;padding:.55rem .65rem;border-radius:8px;font-size:.9rem"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- الخريطة -->
+  <div id="map">
+    <div class="mapFabWrap">
+      <button id="satToggle" class="mapFab" aria-pressed="false" title="عرض القمر الصناعي">
+        <i class="ico fa-solid fa-satellite"></i><span class="lbl">طرق</span>
+      </button>
+      <button id="printBtn" class="mapFab" title="طباعة الخريطة ومعلومات الحوض">
+        <i class="ico fa-solid fa-print"></i><span>طباعة</span>
+      </button>
+    </div>
+    <div id="layerToast" class="layer-toast" role="status" aria-live="polite"></div>
+
+    <!-- شريط فهرس الطبقات (يظهر فقط في الطباعة) -->
+    <div id="printLegendOverlay" class="print-legend-overlay" aria-hidden="true">
+      <div class="plg-head"><i class="fa-solid fa-list"></i><span>فهرس الطبقات</span></div>
+      <div id="plgBody" class="plg-body"></div>
+    </div>
+  </div>
+
+  <!-- يمين -->
+  <aside id="mainPane" class="side right">
+    <div class="pane">
+      <div class="hdr">
+        <div class="logo"></div>
+        <div>
+          <div class="title">خريطة أحواض مادبا</div>
+          <div class="subtitle">مديرية أشغال مادبا — إعداد وتصميم م. أحمد الزن</div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="section">
+        <h3 style="margin:0;padding:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+          <i class="fa-solid fa-magnifying-glass"></i> نتائج البحث
+        </h3>
+        <div id="resultsPanel" style="padding:10px"></div>
+      </div>
+      <div class="section">
+        <h3 style="margin:0;padding:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+          <i class="fa-solid fa-layer-group"></i> إدارة الطبقات
+        </h3>
+        <div id="layersPanel" style="padding:10px"></div>
+      </div>
+      <!-- قسم تعديل الطرق -->
+<div class="section" id="secEditor">
+  <button class="secHead"><i class="fa-solid fa-pen-ruler"></i> تعديل الطرق</button>
+  <div class="secBody">
+    <div class="field">
+      <label>اسم الطريق</label>
+      <input id="rd_name" placeholder="مثال: طريق مأدبا الرئيسي">
+    </div>
+    <div class="field">
+      <label>النوع</label>
+      <select id="rd_type">
+        <option value="primary">Primary</option>
+        <option value="secondary">Secondary</option>
+        <option value="residential">Residential</option>
+        <option value="service">Service</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>السرعة القصوى (كم/س)</label>
+      <input id="rd_speed" type="number" min="0" step="5">
+    </div>
+    <div class="field">
+      <label>ملاحظات</label>
+      <textarea id="rd_note" rows="2"></textarea>
+    </div>
+
+    <div id="rd_len" style="font-size:12px;color:#9db2ce">الطول: —</div>
+
+    <div class="editor-actions">
+      <button class="btn block" id="btnDraw">رسم</button>
+      <button class="btn block" id="btnEdit">تحرير هندسة</button>
+      <button class="btn block danger" id="btnDelete">حذف</button>
+      <button class="btn block primary" id="btnSave">حفظ</button>
+      <button class="btn block" id="btnExport">تصدير</button>
+      <label class="btn block" for="impFile">استيراد</label>
+      <input id="impFile" type="file" accept=".geojson,.json" style="display:none">
+      <button class="btn block" id="btnClearAll">مسح الكل</button>
+      <button class="btn block" id="btnCancelEdit">إلغاء التحرير</button>
+
+    </div>
+  </div>
+</div>
+<!-- قائمة الطرق -->
+<div class="section" id="secRoadsList">
+  <button class="secHead">
+    <i class="fa-solid fa-road"></i>
+    قائمة الطرق المحفوظة
+    <span style="margin-inline-start:auto;display:flex;gap:8px;align-items:center">
+      <button id="btnOpenRoadsEditor" class="btn"><i class="fa-solid fa-table"></i> تحرير شامل</button>
+      <i class="fa-solid fa-chevron-up"></i>
+    </span>
+  </button>
+  <div class="secBody">
+    <div id="roadsTableWrap" style="overflow:auto;max-height:320px">
+      <table id="roadsTable" style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="color:#9db2ce">
+            <th style="text-align:right;padding:6px">إظهار</th>
+            <th style="text-align:right;padding:6px">الاسم</th>
+            <th style="text-align:right;padding:6px">التصنيف</th>
+            <th style="text-align:right;padding:6px">الطول</th>
+            <th style="text-align:right;padding:6px">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="roadsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- شارة المطوّر (على الشاشة) -->
+<div class="dev-credit" aria-hidden="true">
+  <i class="ico fa-solid fa-code"></i><span class="name">المطور: م. أحمد الزن</span><span class="sep">|</span>
+  <i class="ico fa-solid fa-location-crosshairs"></i><span id="mouseCoords" class="coords">X: — , Y: —</span>
+</div>
+
+<!-- أشرطة الطباعة -->
+<div id="printHeader" class="print-band top">
+  <div class="print-head-wrap">
+    <img src="data/moh_logo.png" alt="شعار وزارة الأشغال العامة والإسكان" class="moh-logo">
+    <div class="print-head-titles">
+      <div class="gov-title">وزارة الأشغال العامة والإسكان</div>
+      <div class="dir-title">مديرية أشغال محافظة مأدبا</div>
+      <div class="report-title">تقرير حالة الاختصاص</div>
+    </div>
+  </div>
+  <div id="printBasinInfo" class="print-info"></div>
+</div>
+<div class="print-band bottom">
+  <div class="print-info" id="printDate"></div>
+  <div class="print-dev">إعداد وتصميم: م. أحمد الزن</div>
+</div>
+<script src="auth.js"></script>
+<script>
+try{ requireAuth(); }catch(e){ console.warn('auth disabled:', e); }
+</script>
+
+
+<header style="display:flex;justify-content:space-between;align-items:center;
+               background:#0f172a;color:#fff;padding:200px 16px">
+  <div style="font-weight:bold">خريطة مادبا</div>
+  <div>
+    <button onclick="location.href='madaba.html'" 
+            style="margin-left:8px;background:#2563eb;color:#fff;
+                   border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
+      ← رجوع
+    </button>
+    <button onclick="logout()" 
+            style="background:#ef4444;color:#fff;
+                   border:0;padding:8px 12px;border-radius:8px;cursor:pointer">
+      تسجيل خروج
+    </button>
+    <button id="measureToggle" class="measure-toggle" title="قياس">أدوات القياس</button>
+<div id="measurePanel" class="measure-panel" role="dialog" aria-label="أدوات القياس">
+  <div class="row">
+    <button id="mDist"  class="btn" title="قياس مسافة">مسافة</button>
+    <button id="mArea"  class="btn" title="قياس مساحة">مساحة</button>
+    <button id="mCoord" class="btn" title="إحداثيات">إحداثيات</button>
+  </div>
+  <div class="row">
+    <button id="mFinish" class="btn">إنهاء</button>
+    <button id="mClear"  class="btn">تفريغ</button>
+  </div>
+  <div id="mInfo" class="info">اختر أداة، ثم انقر على الخريطة.</div>
+</div>
+
+  </div>
+</header>
+
+<!-- بقية كود الخريطة هنا -->
+
+<script>
+  if(!window.CSS || !CSS.escape){
+    window.CSS=window.CSS||{};
+    CSS.escape=s=>String(s).replace(/[^a-zA-Z0-9_\-]/g,m=>'\\'+m);
+  }
+
+  /* الخريطة */
+  const map = L.map('map').setView([31.72, 35.73], 10);
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri'});
+   (function () {
+    const el = document.getElementById('mouseCoords');
+    if (!el || !window.map) return;
+
+    const fmt = v => (Math.abs(v) > 999 ? v.toFixed(3) : v.toFixed(6));
+
+    map.on('mousemove', e => {
+      const { lat, lng } = e.latlng;
+      el.textContent = `X: ${fmt(lng)} , Y: ${fmt(lat)}`;
+    });
+
+    map.on('mouseout', () => {
+      el.textContent = 'X: — , Y: —';
+    });
+  })();
+
+
+  L.control.layers({'خارطة طرق (OSM)':osm,'قمر صناعي (Esri)':sat},{},{position:'topleft'}).addTo(map);
+
+  const satBtn=document.getElementById('satToggle'); let isSat=false;
+  function updateSatBtnUI(s){isSat=!!s; satBtn.classList.toggle('active',isSat); satBtn.setAttribute('aria-pressed',String(isSat)); satBtn.title=isSat?'عرض خريطة الطرق':'عرض القمر الصناعي'; satBtn.querySelector('.lbl').textContent=isSat?'قمر صناعي':'طرق';}
+  function setBaseLayer(s){ if(s){ if(map.hasLayer(osm)) map.removeLayer(osm); if(!map.hasLayer(sat)) sat.addTo(map);} else { if(map.hasLayer(sat)) map.removeLayer(sat); if(!map.hasLayer(osm)) osm.addTo(map);} updateSatBtnUI(s); }
+  satBtn.addEventListener('click',()=>setBaseLayer(!isSat));
+  map.on('baselayerchange',e=>updateSatBtnUI(/Esri|قمر صناعي/i.test(e.name))); updateSatBtnUI(false);
+// === رسم طريق وتخزينه بشكل عام ===
+// ✅ الكتلة الموحَّدة المعتمدة
+// ============ إدارة الطرق ككائنات قابلة للتحرير ============
+const ROADS_KEY = 'roads_list';        // موجود مسبقاً لديك
+const roadsById = new Map();           // id -> { rec, layer }
+let editingRoadId = null;              // عند تحرير طريق
+
+const roadColorByType = (t)=>{
+  t = String(t||'primary').toLowerCase();
+  return t==='primary'     ? '#e11d48' :
+         t==='secondary'   ? '#f59e0b' :
+         t==='residential' ? '#0ea5e9' :
+         t==='service'     ? '#16a34a' : '#ff0000';
+};
+
+function metersToNice(m){
+  return m<1000 ? `${m.toFixed(1)} م` : `${(m/1000).toFixed(3)} كم`;
+}
+function lengthOfLine(coords){
+  if(!Array.isArray(coords)) return 0;
+  let s=0;
+  for(let i=1;i<coords.length;i++){
+    const a=L.latLng(coords[i-1][1], coords[i-1][0]);
+    const b=L.latLng(coords[i][1],   coords[i][0]);
+    s += map.distance(a,b);
+  }
+  return s;
+}
+
+function loadSavedRoads(){
+  try{ return JSON.parse(localStorage.getItem(ROADS_KEY)||'[]'); }
+  catch{ return []; }
+}
+function saveAllRoads(list){
+  localStorage.setItem(ROADS_KEY, JSON.stringify(list));
+}
+
+function upsertRoadLayer(rec){
+  // أنشئ أو حدّث الطبقة على الخريطة
+  const color = roadColorByType(rec.properties?.type);
+  const layer = L.geoJSON({type:'Feature', geometry:rec.geometry, properties:rec.properties},{
+    style: { color, weight:4, fillOpacity:0 },
+    onEachFeature:(f,l)=>{
+      const nm = f.properties?.name || 'طريق بدون اسم';
+      const tp = f.properties?.type || 'primary';
+      l.bindPopup(`<b>${nm}</b><br>التصنيف: ${tp}`);
+      l.on('click', ()=> l.openPopup());
+    }
+  });
+
+  if(roadsById.has(rec.id)){
+    const prev = roadsById.get(rec.id);
+    try{ roadsLayer.removeLayer(prev.layer); }catch{}
+  }
+  if(rec.visible!==false) layer.addTo(roadsLayer);
+  roadsById.set(rec.id, {rec, layer});
+}
+
+function removeRoad(id){
+  const list = loadSavedRoads().filter(r=>r.id!==id);
+  saveAllRoads(list);
+  const hit = roadsById.get(id);
+  if(hit){ try{ roadsLayer.removeLayer(hit.layer); }catch{} roadsById.delete(id); }
+  renderRoadsTable();
+}
+
+function renderRoadsTable(){
+  const tbody = document.getElementById('roadsTbody');
+  if(!tbody) return;
+  const list = loadSavedRoads();
+  tbody.innerHTML = '';
+  list.forEach((rec, idx)=>{
+    const len = Array.isArray(rec.geometry?.coordinates) ? metersToNice(lengthOfLine(rec.geometry.coordinates)) : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:6px"><input type="checkbox" ${rec.visible!==false?'checked':''} data-act="vis"></td>
+      <td style="padding:6px;font-weight:800">${rec.properties?.name||'—'}</td>
+      <td style="padding:6px">${rec.properties?.type||'primary'}</td>
+      <td style="padding:6px">${len}</td>
+      <td style="padding:6px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" data-act="zoom">تكبير</button>
+        <button class="btn" data-act="edit">تحرير</button>
+        <button class="btn danger" data-act="del">حذف</button>
+      </td>`;
+    tbody.appendChild(tr);
+
+    // أحداث الصف
+    tr.querySelector('[data-act="vis"]').onchange = (e)=>{
+      rec.visible = e.target.checked;
+      // حدّث الخريطة
+      upsertRoadLayer(rec);
+      // خزّن
+      const all = loadSavedRoads();
+      const i = all.findIndex(r=>r.id===rec.id);
+      if(i>-1){ all[i]=rec; saveAllRoads(all); }
+    };
+  tr.querySelector('[data-act="zoom"]').onclick = ()=>{
+  if (!rec.geometry) return; // لا شيء للتكبير
+  try{
+    const l = L.geoJSON({type:'Feature', geometry:rec.geometry}).getLayers()[0];
+    if(l){ map.fitBounds(l.getBounds(), {padding:[20,20]}); }
+  }catch{}
+};
+
+   tr.querySelector('[data-act="edit"]').onclick = ()=>{
+    // أزل أي تولتيب تحرير عالق
+document.querySelectorAll('.leaflet-draw-tooltip').forEach(el=>el.remove());
+
+  openRoadsEditor();
+  setTimeout(()=>{
+    const inp = document.querySelector(`#roadsGridBody tr[data-id="${rec.id}"] .g-name`);
+    inp?.focus();
+  },0);
+
+  // حضّر طبقة التحرير
+  roadsLayer.clearLayers();
+  drawnFeature = null;
+
+  // إن وُجدت هندسة حمّلها، وإلا اترك المحرر فارغًا
+  if (rec.geometry) {
+    const l = L.geoJSON({type:'Feature', geometry:rec.geometry}).getLayers()[0].addTo(roadsLayer);
+    drawnFeature = l;
+    try{ map.fitBounds(l.getBounds(), {padding:[20,20]}); }catch{}
+    updateLength();
+  } else {
+    document.getElementById('rd_len').textContent = 'الطول: —';
+  }
+
+  editingRoadId = rec.id;
+};
+
+
+    tr.querySelector('[data-act="del"]').onclick = ()=> removeRoad(rec.id);
+  });
+}
+
+// إعادة تحميل كل الطرق من التخزين إلى الخريطة والجدول
+function rebuildRoadsFromStorage(){
+  // طبقة التحرير تظلّ منفصلة – لا نضيف لها الطرق المحفوظة
+  renderRoadsTable();   // حدّث جدول القائمة
+  refreshRoadsLayer();  // اعرض الطرق المحفوظة كطبقة مستقلة "طرق محفوظة"
+}
+
+
+const roadsLayer = L.featureGroup().addTo(map);
+let drawnFeature = null;
+
+const drawControl = new L.Control.Draw({
+  draw: {
+    polygon:false, rectangle:false, circle:false, marker:false, circlemarker:false,
+    polyline:{ shapeOptions:{ color:'#ff0000', weight:4 } }
+  },
+  edit: { featureGroup: roadsLayer }
+});
+map.addControl(drawControl);
+
+// عندما يُرسم خط جديد من شريط Leaflet.draw أو من زر "رسم"
+map.on(L.Draw.Event.CREATED, (e) => {
+  roadsLayer.clearLayers();          // احتفظ بخط واحد
+  drawnFeature = e.layer.addTo(roadsLayer);
+  updateLength();
+});
+// ——— وظائف تعديل الطرق ———
+function flattenLatLngs(latlngs){
+  const out=[]; (function rec(a){ Array.isArray(a)?a.forEach(rec):out.push(a); })(latlngs); return out;
+}
+function updateLength(){
+  if(!drawnFeature) return;
+  const pts=flattenLatLngs(drawnFeature.getLatLngs());
+  let d=0; for(let i=1;i<pts.length;i++) d+=pts[i-1].distanceTo(pts[i]);
+  document.getElementById('rd_len').textContent=`الطول: ${d.toFixed(2)} م (${(d/1000).toFixed(2)} كم)`;
+}
+
+// رسم من زر
+document.getElementById('btnDraw').addEventListener('click',()=>{
+  const drawer=new L.Draw.Polyline(map, drawControl.options.draw.polyline);
+  drawer.enable();
+});
+
+// تحرير
+let editToolbar=null;
+// لقطة قبل التحرير من أجل Ctrl+Z
+let editSnapshot = null;
+
+// Ctrl+Z: عند تفعيل وضع التحرير يعيد الشكل إلى اللقطة السابقة
+window.addEventListener('keydown', (e)=>{
+  // تراجع
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){
+    if(editToolbar && editToolbar._enabled && drawnFeature && editSnapshot){
+      try{
+        // استرجاع الإحداثيات
+        drawnFeature.setLatLngs(editSnapshot);
+        drawnFeature.redraw?.();
+        updateLength();
+        e.preventDefault();
+      }catch{}
+    }
+  }
+  // Esc: إلغاء التحرير وتنظيف التولتيب العالق
+  if(e.key==='Escape'){
+    if(editToolbar && editToolbar._enabled){
+      cancelEditing();
+    }
+  }
+});
+
+document.getElementById('btnEdit').addEventListener('click',()=>{
+  if(!roadsLayer.getLayers().length){ alert('لا يوجد طريق'); return; }
+
+  // التقط لقطة للإحداثيات قبل بدء التحرير لأجل Ctrl+Z
+  try{
+    const l = roadsLayer.getLayers()[0];
+    // deep copy للإحداثيات
+    editSnapshot = JSON.parse(JSON.stringify(l.getLatLngs()));
+  }catch{ editSnapshot = null; }
+
+  // فعّل شريط التحرير
+  try{ editToolbar?.disable(); }catch{}
+  editToolbar = new L.EditToolbar.Edit(map,{ featureGroup: roadsLayer });
+  editToolbar.enable();
+});
+
+
+// حذف
+document.getElementById('btnDelete').addEventListener('click',()=>{
+  if(drawnFeature){ roadsLayer.removeLayer(drawnFeature); drawnFeature=null; document.getElementById('rd_len').textContent='الطول: —'; }
+});
+// === إلغاء التحرير + تنظيف تولتيبات Leaflet.draw ===
+function cancelEditing(){
+  try{ editToolbar?.disable(); }catch{}
+  // امسح تولتيبات "Click cancel to undo..." إن بقيت عالقة
+  document.querySelectorAll('.leaflet-draw-tooltip').forEach(el=>el.remove());
+  map.getContainer().style.cursor = '';
+}
+
+// إلغاء التحرير
+document.getElementById('btnCancelEdit').addEventListener('click', ()=>{
+  try{ editToolbar?.disable(); }catch{}
+  roadsLayer.clearLayers();
+  drawnFeature = null;
+  editingRoadId = null;
+  document.getElementById('rd_len').textContent = 'الطول: —';
+});
+
+// حفظ
+  document.getElementById('btnSave').addEventListener('click',()=>{
+  if(!drawnFeature){ alert('لا يوجد طريق'); return; }
+  const props = {
+    name: rd_name.value,
+    type: rd_type.value,
+    speed: +rd_speed.value||0,
+    notes: rd_note.value
+  };
+  const gj = drawnFeature.toGeoJSON(); // LineString
+  const list = loadSavedRoads();
+
+  if(editingRoadId){
+    const i = list.findIndex(r=>r.id===editingRoadId);
+    if(i>-1){
+      list[i] = { ...list[i], geometry: gj.geometry, properties: props };
+    }
+  }else{
+    const rec = {
+      id: 'rd_'+Date.now(),
+      geometry: gj.geometry,
+      properties: props,
+      visible: true
+    };
+    list.push(rec);
+  }
+
+   saveAllRoads(list);
+
+  // أوقف التحرير ونظّف الرسائل الرمادية
+  cancelEditing();
+
+  editingRoadId = null;
+  alert('تم الحفظ.');
+//   rebuildRoadsFromStorage();
+//   refreshRoadsLayer();
+});
+
+
+// تصدير
+document.getElementById('btnExport').addEventListener('click',()=>{
+const list = JSON.parse(localStorage.getItem(ROADS_KEY) || '[]');
+  if(!list.length){alert('لا يوجد طرق');return;}
+  const fc={type:'FeatureCollection',features:list};
+  const blob=new Blob([JSON.stringify(fc,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='roads.geojson'; a.click();
+});
+
+// استيراد
+document.getElementById('impFile').addEventListener('change',async ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const gj=JSON.parse(await f.text());
+  const feat=(gj.type==='FeatureCollection'?gj.features[0]:gj);
+  roadsLayer.clearLayers(); drawnFeature=L.geoJSON(feat).getLayers()[0].addTo(roadsLayer);
+  map.fitBounds(drawnFeature.getBounds()); updateLength(); ev.target.value='';
+});
+
+// مسح الكل
+document.getElementById('btnClearAll').addEventListener('click',()=>{
+  roadsLayer.clearLayers();
+  drawnFeature = null;
+  document.getElementById('rd_len').textContent = 'الطول: —';
+  localStorage.removeItem(ROADS_KEY);
+  roadsById.clear();
+  renderRoadsTable();
+});
+
+
+// عند إنهاء تحرير الشكل
+map.on('draw:edited', updateLength);
+
+  /* طي الأقسام */
+  document.querySelectorAll('.section .secHead').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const body=btn.parentElement.querySelector('.secBody');
+      const icon=btn.querySelector('.fa-chevron-up, .fa-chevron-down');
+      const collapsed=body.classList.toggle('collapsed');
+      if(icon){icon.className='fa-solid '+(collapsed?'fa-chevron-down':'fa-chevron-up');}
+    });
+  });
+
+  /* زر اللوحة اليمنى */
+  const appEl=document.getElementById('app'); const handle=document.getElementById('mainHandle');
+  let mainVisible=false; const updateHandleIcon=()=> handle.querySelector('.ico').className='ico fa-solid '+(mainVisible?'fa-angles-left':'fa-angles-right');
+
+  /* إعدادات ومحاذاة وسطية دقيقة */
+  const TOP_FOCUS_VY = 0.5;
+  const TOP_EXTRA_OFFSET_PX = 0;
+
+  // مؤشّر الهدف (ذهبي)
+  let targetMarker=null;
+  function showTargetAt(latlng){
+    const icon=L.divIcon({className:'target-pin target-pulse',iconSize:[38,38],iconAnchor:[19,19]});
+    if(!targetMarker){ targetMarker=L.marker(latlng,{icon,zIndexOffset:9999}).addTo(map); }
+    else { targetMarker.setIcon(icon); targetMarker.setLatLng(latlng); }
+    clearTimeout(showTargetAt._t); showTargetAt._t=setTimeout(()=>{ if(targetMarker){ targetMarker.setOpacity(0.95); } }, 800);
+  }
+  function clearTarget(){ if(targetMarker){ map.removeLayer(targetMarker); targetMarker=null; } }
+
+  let lastSelectedCenter=null;
+  function centerAligned(latlng,{vx=0.5,vy=TOP_FOCUS_VY,offset=[0,TOP_EXTRA_OFFSET_PX]}={}){
+    if(!latlng) return;
+    const size = map.getSize();
+    const desired = L.point(size.x*vx, size.y*vy).add(L.point(offset[0], offset[1]));
+    const current = map.latLngToContainerPoint(latlng);
+    const delta = desired.subtract(current);
+    map.panBy(delta, {animate:true, duration:0.45});
+    showTargetAt(latlng);
+    lastSelectedCenter = latlng;
+  }
+
+  function flyToBoundsAligned(bounds, {padding=60, minZoom=8, vy=TOP_FOCUS_VY}={}){
+    if(!bounds || !bounds.isValid()) return;
+    const padPt = L.point(padding, padding);
+    let z = map.getBoundsZoom(bounds, true, padPt);
+    z = Math.max(z, minZoom);
+    const c = bounds.getCenter();
+
+    map.setView(c, z, {animate:true, duration:0.8});
+    setTimeout(()=>{
+      map.invalidateSize();
+      requestAnimationFrame(()=> centerAligned(c,{vy}));
+    }, 300);
+  }
+
+  handle.addEventListener('click',()=>{
+    mainVisible=!mainVisible;
+    appEl.classList.toggle('hide-main',!mainVisible);
+    updateHandleIcon();
+    setTimeout(()=>{
+      map.invalidateSize();
+      if(lastSelectedCenter){ centerAligned(lastSelectedCenter); }
+    },250);
+  });
+  updateHandleIcon();
+
+  /* توست اسم الطبقة */
+  let toastTimer=null; const toastEl=document.getElementById('layerToast');
+  function showLayerToastAt(latlng,text){
+    const pad=12; toastEl.textContent=text||''; toastEl.classList.add('show');
+    requestAnimationFrame(()=>{
+      const mapSize=map.getSize(); const pt=map.latLngToContainerPoint(latlng);
+      const w=toastEl.offsetWidth,h=toastEl.offsetHeight;
+      let x=pt.x+10,y=pt.y-h-10; x=Math.min(Math.max(pad,x),mapSize.x-w-pad); y=Math.min(Math.max(pad,y),mapSize.y-h-pad);
+      toastEl.style.left=x+'px'; toastEl.style.top=y+'px';
+      clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2000);
+    });
+  }
+  map.on('movestart zoomstart',()=>toastEl.classList.remove('show'));
+
+  /* تحميل الطبقات تلقائياً */
+  const AUTO_FILES=['data/B Madaba.kmz','data/B Name.kmz','data/basin boundry.kmz','data/g1.kmz','data/jor.kmz','data/Tanzeem.kmz','data/MAD_JVB.kmz','data/MAD_BALDIEAT.kmz'];
+  const NAME_MAP={'B Madaba.kmz':{name:'حد محافظة',desc:'حد محافظة'},'B Name.kmz':{name:'اسم الحوض',desc:'اسم الحوض'},'basin boundry.kmz':{name:'حد حوض',desc:'حد حوض'},'g1.kmz':{name:'حدود البلدية الادارية',desc:'حدود البلدية الادارية'},'jor.kmz':{name:'حدود سلطة وادي الاردن',desc:'حدود سلطة وادي الاردن'},'Tanzeem.kmz':{name:'حدود التنظيم المصدق',desc:'حدود التنظيم المصدق'},'MAD_JVB.kmz':{name:'مناطق سلطة وادي الأردن',desc:'مناطق سلطة وادي الأردن'},'MAD_BALDIEAT.kmz':{name:'حدود بلديات مادبا',desc:'الحدود الإدارية للبلديات'}};
+  const STYLE_MAP={'B Madaba.kmz':{stroke:'#147d6f',fill:'#8ee3d6'},'B Name.kmz':{stroke:'#0ea5e9',fill:'#93c5fd'},'basin boundry.kmz':{stroke:'#a855f7',fill:'#d8b4fe'},'g1.kmz':{stroke:'#e11d48',fill:'#fecaca'},'jor.kmz':{stroke:'#f59e0b',fill:'#fde68a'},'Tanzeem.kmz':{stroke:'#16a34a',fill:'#bbf7d0'},'MAD_JVB.kmz':{stroke:'#0d9488',fill:'#99f6e4'},'MAD_BALDIEAT.kmz':{stroke:'#7c3aed',fill:'#ddd6fe'}};
+  const FALLBACK_PALETTE=[{stroke:'#7c3aed',fill:'#c4b5fd'},{stroke:'#06b6d4',fill:'#a5f3fc'},{stroke:'#d97706',fill:'#fcd34d'},{stroke:'#be185d',fill:'#fbcfe8'}];
+  const BASE_WEIGHT=3; const LAYERS=new Map();
+  const featureName=p=>p?.AR_NAME||p?.name||p?.Name||p?.arabic_name||p?.ARABIC||p?.NAM||'';
+  function summarizeGeoJSON(gj){
+    let c={Point:0,LineString:0,Polygon:0,MultiPoint:0,MultiLineString:0,MultiPolygon:0,Other:0},total=0;
+    (gj.features||[]).forEach(f=>{total++;const t=f.geometry?.type||''; if(c[t]==null)c.Other++; else c[t]++;});
+    let s=[]; if(c.Polygon||c.MultiPolygon)s.push(`مضلعات: ${c.Polygon+c.MultiPolygon}`);
+    if(c.LineString||c.MultiLineString)s.push(`خطوط: ${c.LineString+c.MultiLineString}`);
+    if(c.Point||c.MultiPoint)s.push(`نقاط: ${c.Point+c.MultiPoint}`);
+    return{total,text:s.length?s.join(' • '):`عناصر: ${total}`};
+  }
+  function rgbToHex(c){
+    if(!c) return '#000';
+    if(c.startsWith('#')) return c;
+    const m=c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if(!m) return '#000';
+    return '#'+[m[1],m[2],m[3]].map(v=>('0'+(+v).toString(16)).slice(-2)).join('');
+  }
+  const niceName=p=>(p||'').split('/').pop().replace(/\.(kmz|kml|geojson|json)$/i,'');
+  const fileKeyFromUrl=u=>decodeURI((u||'').split('/').pop());
+
+  /* إضافة طبقة GeoJSON مع البطاقات */
+  function addStyledGeoJson(fileUrl,geojson){
+    const key=fileKeyFromUrl(fileUrl), display=(NAME_MAP[key]?.name)||niceName(key), desc=(NAME_MAP[key]?.desc)||display;
+    const meta=summarizeGeoJSON(geojson);
+    const stylePair=STYLE_MAP[key]||FALLBACK_PALETTE[LAYERS.size%FALLBACK_PALETTE.length];
+    const opts={color:stylePair.stroke,weight:BASE_WEIGHT,fillColor:stylePair.fill,fillOpacity:.25,show:true};
+    const gj=L.geoJSON(geojson,{
+      style:()=>({color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity}),
+      pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:4,color:opts.color,weight:opts.weight,fillColor:opts.fillColor,fillOpacity:.9}),
+      onEachFeature:(f,layer)=>{
+        const nm=featureName(f.properties);
+        if(nm){
+          const isPt=/Point/i.test(f.geometry?.type||'');
+          layer.bindTooltip(nm,{permanent:true,direction:isPt?'top':'center',className:isPt?'point-label':'basin-label',offset:isPt?[0,-8]:[0,0]});
+        }
+        layer.on('click',(ev)=>showLayerToastAt(ev.latlng,display));
+      }
+    }).addTo(map);
+    LAYERS.set(fileUrl,{layer:gj,opts,meta});
+    renderLayerCard(fileUrl,display,meta,opts,desc);
+    updatePrintLegendOverlay(); /* تحديث الفهرس بعد إضافة الطبقة */
+    try{map.fitBounds(gj.getBounds(),{padding:[10,10]});}catch(e){}
+  }
+  (async()=>{
+    for(const f of AUTO_FILES){try{await loadKmlOrKmz(f);}catch(e){console.error('KMZ/KML load fail',f,e);}}
+  })();
+
+  async function loadKmlOrKmz(fileUrl){
+    const res=await fetch(fileUrl); if(!res.ok) throw new Error('HTTP '+res.status+' @ '+fileUrl);
+    const buf=await res.arrayBuffer(); let gj;
+    if(fileUrl.toLowerCase().endsWith('.kmz')){
+      const zip=await JSZip.loadAsync(buf);
+      const entry = Object.values(zip.files).find(x=>x.name.toLowerCase().endsWith('.kml'));
+      if(!entry) throw new Error('No .kml inside KMZ');
+      const kmlTxt=await entry.async('text');
+      const dom=new DOMParser().parseFromString(kmlTxt,'text/xml');
+      gj=toGeoJSON.kml(dom);
+    }else{
+      const txt=new TextDecoder('utf-8').decode(buf);
+      const dom=new DOMParser().parseFromString(txt,'text/xml');
+      gj=toGeoJSON.kml(dom);
+    }
+    addStyledGeoJson(fileUrl,gj);
+  }
+
+  const PRESETS=[{stroke:'#147d6f',fill:'#8ee3d6'},{stroke:'#0ea5e9',fill:'#93c5fd'},{stroke:'#a855f7',fill:'#d8b4fe'},{stroke:'#e11d48',fill:'#fecaca'},{stroke:'#f59e0b',fill:'#fde68a'},{stroke:'#16a34a',fill:'#bbf7d0'}];
+
+  function renderLayerCard(id,display,meta,opts,desc){
+    const panel=document.getElementById('layersPanel');
+    let root=panel.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    if(!root){
+      root=document.createElement('div'); root.className='layerCard'; root.dataset.id=id;
+      root.innerHTML=`<div class="layerHead">
+        <div class="swatch" data-swatch></div>
+        <div><div class="layerName" data-name></div><div class="desc" data-desc></div></div>
+        <label class="toggleBox"><input type="checkbox" class="vis" checked><span>إظهار</span></label>
+        <button class="collapseBtn" data-act="collapse"><i class="fa-solid fa-chevron-left"></i><span>خصائص</span></button></div>
+        <div class="layerBody"><div class="ctrlRow">
+          <div class="ctrl"><label>لون الحدود</label><input type="color" class="stroke"></div>
+          <div class="ctrl"><label>سماكة</label><input type="range" class="weight" min="1" max="10" step="1"></div>
+          <div class="ctrl"><label>لون التعبئة</label><input type="color" class="fill"></div>
+          <div class="ctrl"><label>شفافية</label><input type="range" class="fillop" min="0" max="1" step="0.05"></div>
+          <div class="presets"></div></div></div>`;
+      panel.appendChild(root);
+
+      root.querySelector('.vis').addEventListener('change',()=>{
+        const info=LAYERS.get(id); if(!info) return;
+        info.opts.show=root.querySelector('.vis').checked;
+        if(info.opts.show) info.layer.addTo(map); else map.removeLayer(info.layer);
+        updatePrintLegendOverlay(); /* تحديث الفهرس عند الإظهار/الإخفاء */
+      });
+
+      const btn=root.querySelector('[data-act="collapse"]'), body=root.querySelector('.layerBody');
+      btn.addEventListener('click',()=>{const open=body.classList.toggle('open'); btn.querySelector('i').style.transform=open?'rotate(180deg)':'rotate(0deg)';});
+
+      root.querySelector('.layerBody').addEventListener('input',()=>{
+        const info=LAYERS.get(id); if(!info) return;
+        const stroke=root.querySelector('.stroke').value;
+        const weight=+root.querySelector('.weight').value;
+        const fill=root.querySelector('.fill').value;
+        const fillOp=parseFloat(root.querySelector('.fillop').value);
+        info.opts={...info.opts,color:stroke,weight,fillColor:fill,fillOpacity:fillOp};
+        try{ info.layer.setStyle({color:stroke,weight,fillColor:fill,fillOpacity:fillOp}); }catch{}
+        updateSwatch(root,info.opts);
+        updatePrintLegendOverlay(); /* تحديث الفهرس عند تغيير النمط */
+      });
+
+      const pWrap=root.querySelector('.presets');
+      PRESETS.forEach(p=>{
+        
+                const chip=document.createElement('div'); chip.className='chip';
+                  // build markup without inline CSS that confuses some parsers, then apply styles via DOM
+                  chip.innerHTML=`<span class="box" data-stroke></span>${p.stroke}&nbsp;/&nbsp;<span class="box" data-fill></span>`;
+                  const strokeEl = chip.querySelector('[data-stroke]');
+                  const fillEl   = chip.querySelector('[data-fill]');
+                  if(strokeEl) strokeEl.style.background = p.stroke || '#000';
+                  if(fillEl)   fillEl.style.background   = p.fill   || '#000';
+                  chip.addEventListener('click',()=>{
+          const info=LAYERS.get(id); if(!info) return;
+          info.opts={...info.opts,color:p.stroke,fillColor:p.fill};
+          info.layer.setStyle({color:p.stroke,fillColor:p.fill,fillOpacity:info.opts.fillOpacity,weight:info.opts.weight});
+          root.querySelector('.stroke').value=p.stroke; root.querySelector('.fill').value=p.fill;
+          updateSwatch(root,info.opts);
+          updatePrintLegendOverlay(); /* تحديث الفهرس عند اختيار بريست */
+        });
+        pWrap.appendChild(chip);
+      });
+    }
+    root.querySelector('[data-name]').textContent=display;
+    root.querySelector('[data-desc]').textContent=(desc?desc+' • ':'')+meta.text+` • عناصر: ${meta.total}`;
+    root.querySelector('.stroke').value=rgbToHex(opts.color);
+    root.querySelector('.fill').value=rgbToHex(opts.fillColor);
+    root.querySelector('.weight').value=opts.weight;
+    root.querySelector('.fillop').value=opts.fillOpacity;
+    root.querySelector('.vis').checked=!!opts.show;
+    updateSwatch(root,opts);
+  }
+  const updateSwatch=(card,opts)=> card.querySelector('[data-swatch]').style.background=`linear-gradient(135deg, ${opts.fillColor} 55%, ${opts.color} 0)`;
+// === طبقة الطرق المحفوظة محلياً ===
+const ROADS_ID  = 'local:roads';
+
+function getSavedRoads(){
+  try{ return JSON.parse(localStorage.getItem(ROADS_KEY)||'[]'); }
+  catch{ return []; }
+}
+
+// أنشئ/حدّث طبقة الطرق من التخزين المحلي وأضف بطاقة لها في "إدارة الطبقات"
+function refreshRoadsLayer(){
+  // أزل النسخة القديمة إن وُجدت (ومن لوحة الطبقات أيضاً)
+  if(LAYERS.has(ROADS_ID)){
+    const info = LAYERS.get(ROADS_ID);
+    try{ map.removeLayer(info.layer); }catch{}
+    LAYERS.delete(ROADS_ID);
+    document.querySelector(`[data-id="${CSS.escape(ROADS_ID)}"]`)?.remove();
+  }
+
+  const features = getSavedRoads();
+  if(!features.length) return;
+
+  // نحوّل قائمة الميزات إلى FeatureCollection ونستخدم نفس دالة إضافة الطبقات
+  const fc = { type:'FeatureCollection', features };
+
+  addStyledGeoJson(ROADS_ID, fc);                  // تضيف الطبقة + البطاقة تلقائياً
+
+  // تخصيص نمط الطرق حسب النوع إن وُجد (primary/secondary/...)
+  const info = LAYERS.get(ROADS_ID);
+  if(info){
+    info.layer.setStyle(f=>{
+      const t = (f.properties?.type||'primary').toLowerCase();
+      const color =
+        t==='primary'     ? '#e11d48' :
+        t==='secondary'   ? '#f59e0b' :
+        t==='residential' ? '#0ea5e9' :
+        t==='service'     ? '#16a34a' : '#ff0000';
+      return { color, weight:4, fillOpacity:0 };
+    });
+    // عدّل اسم البطاقة والوصف
+    const card = document.querySelector(`[data-id="${CSS.escape(ROADS_ID)}"]`);
+    if(card){
+      card.querySelector('[data-name]').textContent = 'طرق محفوظة';
+      card.querySelector('[data-desc]').textContent =
+        `خطوط: ${features.length} • مصدر: التخزين المحلي`;
+    }
+  }
+}
+/* === نافذة تحرير الطرق الدفعي === */
+/* === نافذة تحرير الطرق الدفعي (نسخة آمنة) === */
+function openRoadsEditor(){
+  renderRoadsGrid();
+  const modal  = document.getElementById('roadsEditorModal');
+  const backdr = document.getElementById('roadsEditorBackdrop');
+  modal?.classList.add('open');
+  backdr?.classList.add('open');
+}
+function closeRoadsEditor(){
+  const modal  = document.getElementById('roadsEditorModal');
+  const backdr = document.getElementById('roadsEditorBackdrop');
+  modal?.classList.remove('open');
+  backdr?.classList.remove('open');
+}
+
+function renderRoadsGrid(){
+  const gridTbd = document.getElementById('roadsGridBody');
+  if(!gridTbd) return;
+  const list = loadSavedRoads();
+  gridTbd.innerHTML = '';
+  list.forEach(rec=> gridTbd.appendChild(rowElFor(rec)));
+}
+
+function rowElFor(rec){
+  const len = Array.isArray(rec.geometry?.coordinates) ? metersToNice(lengthOfLine(rec.geometry.coordinates)) : '—';
+  const tr = document.createElement('tr');
+  tr.dataset.id = rec.id;
+  tr.innerHTML = `
+    <td><input type="checkbox" class="g-vis" ${rec.visible!==false?'checked':''}></td>
+    <td><input class="g-name" value="${(rec.properties?.name||'').replace(/"/g,'&quot;')}"></td>
+    <td>
+      <select class="g-type">
+        <option value="primary">Primary</option>
+        <option value="secondary">Secondary</option>
+        <option value="residential">Residential</option>
+        <option value="service">Service</option>
+      </select>
+    </td>
+    <td><input type="number" class="g-speed" min="0" step="5" value="${+rec.properties?.speed||0}"></td>
+    <td><input class="g-notes" value="${(rec.properties?.notes||'').replace(/"/g,'&quot;')}"></td>
+    <td class="g-len" style="color:#9db2ce">${len}</td>
+    <td><button class="btn danger g-del"><i class="fa-solid fa-trash"></i></button></td>
+  `;
+  tr.querySelector('.g-type').value = (rec.properties?.type||'primary');
+  tr.querySelector('.g-del').onclick = ()=> tr.remove();
+  return tr;
+}
+
+function addEmptyRoadRow(){
+  const gridTbd = document.getElementById('roadsGridBody');
+  if(!gridTbd) return;
+  const rec = {
+    id:'new_'+Date.now(),
+    geometry:null,
+    properties:{ name:'', type:'primary', speed:0, notes:'' },
+    visible:true
+  };
+  gridTbd.appendChild(rowElFor(rec));
+}
+
+function saveRoadsGrid(){
+  const gridTbd = document.getElementById('roadsGridBody');
+  if(!gridTbd) return;
+  const current = loadSavedRoads();
+  const byId = new Map(current.map(r=>[r.id,r]));
+  const fresh = [];
+
+  gridTbd.querySelectorAll('tr').forEach(tr=>{
+    const id     = tr.dataset.id || ('rd_'+Date.now());
+    const name   = tr.querySelector('.g-name').value.trim();
+    const type   = tr.querySelector('.g-type').value;
+    const speed  = +tr.querySelector('.g-speed').value||0;
+    const notes  = tr.querySelector('.g-notes').value;
+    const vis    = tr.querySelector('.g-vis').checked;
+
+    const base   = byId.get(id) || { id, geometry:null };
+    fresh.push({ id, geometry: base.geometry, properties:{ name, type, speed, notes }, visible: vis });
+  });
+
+  saveAllRoads(fresh);
+//   rebuildRoadsFromStorage();
+  refreshRoadsLayer();           // ← تأكد من ظهور "طرق محفوظة"
+  closeRoadsEditor();
+  alert('تم حفظ التعديلات.');
+}
+
+/* اربط الأزرار بعد اكتمال بناء الـDOM */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnOpenRoadsEditor')?.addEventListener('click', openRoadsEditor);
+  document.getElementById('btnAddRoadRow')?.addEventListener('click', addEmptyRoadRow);
+  document.getElementById('btnSaveRoadsGrid')?.addEventListener('click', saveRoadsGrid);
+  document.getElementById('btnCloseRoadsGrid')?.addEventListener('click', closeRoadsEditor);
+  document.getElementById('roadsEditorBackdrop')?.addEventListener('click', closeRoadsEditor);
+});
+
+
+  /* Excel */
+  const EXCEL_PATH='data/Test Gis3.xls';
+  let BASINS=[], COLS=null, lastSelectedBasin=null;
+  const norm=s=>String(s||'').trim();
+  function normText(s){return String(s||'').trim().replace(/\u0640/g,'').replace(/[\u0617-\u061A\u064B-\u0652]/g,'').replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ة/g,'ه').toLowerCase();}
+
+  function detectColumns(headers){
+    const H=headers.map(h=>({raw:h,low:normText(h)}));
+    const findExact=label=>{const t=normText(label);const hit=H.find(h=>h.low===t);return hit?.raw||null;}
+    const findOne=keys=>{const kws=keys.map(k=>normText(k));const hit=H.find(h=>kws.some(k=>h.low.includes(k)));return hit?.raw||null;}
+    return{
+      name:findOne(['اسم الحوض','حوض','ar_name','name','basin','b_name']),
+      lon: findOne(['x','lon','long','longitude','خط الطول','east','الاكس','الاحداثي س']),
+      lat: findOne(['y','lat','latitude','خط العرض','north','الواي','الاحداثي ص']),
+      dir: findOne(['المديرية','مديريه','directorate','مديريه الاشغال']),
+      vil: findOne(['القرية','قريه','village','الحاره','الحي']),
+      adminPos:findOne(['موقع الحوض من الحدود الاداريه للبلديه','الحدود الاداريه','حدود البلديه','اداريه البلديه','داخل البلديه','خارج البلديه','municipality boundary']),
+      planPos: findExact('موقع الحوض من حدود التنظيم المصدق')||findOne(['موقع من التنظيم','ضمن/خارج التنظيم','داخل التنظيم','خارج التنظيم','حدود التنظيم','planning boundary position','zoning boundary position']),
+      jvaPos: findExact('موقع الحوض من حدود سلطة وادي الأردن')||findOne(['سلطه وادي الاردن','وادي الاردن','حدود سلطه وادي الاردن','jordan valley authority','jva','jordan valley']),
+      planStat:findExact('حالة الحوض من حدود التنظيم المصدق')||findOne(['حاله الحوض من حدود التنظيم المصدق','حاله التنظيم','وضع التنظيم','تصنيف تنظيمي','planning status','zoning status']),
+      jurStat: findOne(['حاله الحوض من حيث الاختصاص','الاختصاص','جهة الاختصاص','اختصاص','jurisdiction','jurisdiction status'])
+    };
+  }
+
+  async function loadExcel(){
+    const res=await fetch(EXCEL_PATH); if(!res.ok){console.error('Excel not found',EXCEL_PATH);return;}
+    const buf=await res.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''}); if(!rows.length) return;
+
+    COLS=detectColumns(Object.keys(rows[0]));
+    const missing=[];
+    if(!COLS.planPos)missing.push('موقع الحوض من حدود التنظيم المصدق (planPos)');
+    if(!COLS.jvaPos)missing.push('موقع الحوض من حدود سلطة وادي الأردن (jvaPos)');
+    if(!COLS.planStat)missing.push('حالة الحوض من حدود التنظيم المصدق (planStat)');
+    if(missing.length){
+      const box=document.getElementById('errExcel'); box.style.display='block';
+      box.innerHTML='تنبيه: لم يتم العثور على الأعمدة التالية في ملف Excel:<br>• '+missing.join('<br>• ')+'<br><br>يمكنك تعديل أسماء الأعمدة في الملف، أو إرسال صفّ العناوين وسأربطه يدويًا.';
+    }
+
+    BASINS=rows.map(r=>({
+      raw:r,
+      name:norm(r[COLS.name]),
+      lon:Number(String(r[COLS.lon]).toString().replace(',','.')),
+      lat:Number(String(r[COLS.lat]).toString().replace(',','.')),
+      dir:norm(r[COLS.dir]),
+      vil:norm(r[COLS.vil]),
+      adminPos:norm(COLS.adminPos?r[COLS.adminPos]:''),
+      planPos:norm(COLS.planPos?r[COLS.planPos]:''),
+      jvaPos:norm(COLS.jvaPos?r[COLS.jvaPos]:''),
+      planStat:norm(COLS.planStat?r[COLS.planStat]:''),
+      jurStat:norm(COLS.jurStat?r[COLS.jurStat]:'')
+    })).filter(r=>r.name);
+    const dl=document.getElementById('basinsList'); dl.innerHTML='';
+    const seen=new Set(); BASINS.forEach(b=>{if(seen.has(b.name))return; seen.add(b.name); const o=document.createElement('option'); o.value=b.name; dl.appendChild(o);});
+  }
+
+  /* مؤثر تمييز الحوض + التمركز */
+  let currentHL=null;
+  function findFeatureByNamePreferPolygon(basinName){
+    const target=normText(basinName||''); let pick=null;
+    for(const [id,info] of LAYERS){ if(!info?.layer) continue;
+      info.layer.eachLayer(l=>{
+        const f=l.feature; if(!f) return;
+        const nm=featureName(f.properties||{}); if(!nm) return;
+        if(normText(nm)===target){
+          const t=(f.geometry&&f.geometry.type)||''; const isPoly=/Polygon/i.test(t);
+          if(isPoly&&!pick){pick={layer:l,layerInfo:info,id,type:t};}
+          else if(!pick){pick={layer:l,layerInfo:info,id,type:t};}
+        }
+      });
+      if(pick&&/Polygon/i.test(pick.type)) break;
+    }
+    return pick;
+  }
+
+  function focusAndHighlightBasin(basinName){
+    const hit=findFeatureByNamePreferPolygon(basinName); if(!hit) return false;
+    const feat=hit.layer;
+
+    if(typeof feat.getBounds==='function'){
+      const b=feat.getBounds();
+      if(b && b.isValid()){
+        flyToBoundsAligned(b, {padding:60, minZoom:8, vy:TOP_FOCUS_VY});
+      }
+    } else if(typeof feat.getLatLng==='function'){
+      const ll=feat.getLatLng();
+      map.setView(ll, Math.max(map.getZoom(),16), {animate:true, duration:0.8});
+      setTimeout(()=>centerAligned(ll), 350);
+    }
+
+    try{
+      if(currentHL){ map.removeLayer(currentHL); currentHL=null; }
+      const gj=feat.toGeoJSON();
+      currentHL=L.geoJSON(gj,{
+        style:{color:'#FFD700',weight:8,opacity:1,fillColor:'#FFD700',fillOpacity:0.06,dashArray:'10 10',className:'pulse-stroke'},
+        pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:10,color:'#FFD700',weight:4,fillColor:'#FFD700',fillOpacity:0.3,className:'pulse-stroke'})
+      }).addTo(map);
+      if(currentHL.bringToFront) currentHL.bringToFront();
+
+      const center = (typeof feat.getBounds==='function') ? feat.getBounds().getCenter()
+                    : (typeof feat.getLatLng==='function') ? feat.getLatLng()
+                    : null;
+      if(center) showTargetAt(center);
+
+      setTimeout(()=>{ if(currentHL){ map.removeLayer(currentHL); currentHL=null; } }, 2600);
+    }catch(e){}
+    return true;
+  }
+
+  /* البحث */
+  const basinInput=document.getElementById('basinInput');
+  const f_dir=document.getElementById('f_dir'), f_vil=document.getElementById('f_vil');
+  const f_admin=document.getElementById('f_admin'), f_planpos=document.getElementById('f_planpos');
+  const f_jva=document.getElementById('f_jva'), f_planstat=document.getElementById('f_planstat'), f_jur=document.getElementById('f_jur');
+  const f_x=document.getElementById('f_x'), f_y=document.getElementById('f_y');
+  const errExcel=document.getElementById('errExcel'); const basinMsg=document.getElementById('basinMsg');
+
+  function showErr(box,msg){ box.textContent=msg; box.style.display='block'; setTimeout(()=>{ box.style.display='none'; }, 3000); }
+  function fillSelect(sel,value){ sel.innerHTML=''; const op=document.createElement('option'); op.textContent=value||''; sel.appendChild(op); }
+
+  function applyRow(row){
+    fillSelect(f_dir,row.dir); fillSelect(f_vil,row.vil);
+    fillSelect(f_admin,row.adminPos); fillSelect(f_planpos,row.planPos);
+    fillSelect(f_jva,row.jvaPos); fillSelect(f_planstat,row.planStat);
+    fillSelect(f_jur,row.jurStat);
+    f_x.value=isFinite(row.lon)?row.lon:''; f_y.value=isFinite(row.lat)?row.lat:'';
+    lastSelectedBasin=row;
+    const ok=focusAndHighlightBasin(row.name);
+    if(!ok){ if(isFinite(row.lon)&&isFinite(row.lat)) goToXY(row.lon,row.lat); else showErr(errExcel,'لا توجد إحداثيات صالحة لهذا الحوض.'); }
+  }
+
+  function bestMatches(query){ const q=norm(query); if(!q) return []; return BASINS.filter(b=>b.name.includes(q)); }
+  function renderRightResults(matches){
+    const panel=document.getElementById('resultsPanel'); panel.innerHTML='';
+    if(!matches.length){ panel.innerHTML='<div class="resultCard"><div class="resultMeta">لا يوجد نتائج مطابقة.</div></div>'; return; }
+    matches.forEach((row,i)=>{
+      const card=document.createElement('div'); card.className='resultCard'; card.innerHTML=`
+        <h4>${i+1}. ${row.name}</h4>
+        <div class="resultMeta">
+          المديرية: ${row.dir} • القرية: ${row.vil}<br>
+          حدود البلدية: ${row.adminPos} • التنظيم: ${row.planPos}<br>
+          وادي الأردن: ${row.jvaPos} • حالة التنظيم: ${row.planStat}<br>
+          <span style="color:#ff4d4f;font-weight:800">الاختصاص: ${row.jurStat}</span><br>
+          X: ${row.lon} , Y: ${row.lat}
+        </div>
+        <div class="resultActions">
+          <button class="btn primary" data-act="choose"><i class="fa-solid fa-check"></i> اختيار</button>
+          <button class="btn" data-act="zoom"><i class="fa-solid fa-magnifying-glass-location"></i> تكبير</button>
+        </div>`;
+      card.querySelector('[data-act="choose"]').addEventListener('click',()=>applyRow(row));
+      card.querySelector('[data-act="zoom"]').addEventListener('click',()=>{
+        if(isFinite(row.lon)&&isFinite(row.lat)) goToXY(row.lon,row.lat);
+      });
+      panel.appendChild(card);
+    });
+  }
+  function renderLeftList(matches){
+    const infoBox=document.getElementById('extraInfo'); infoBox.innerHTML='';
+    matches.forEach((row,i)=>{
+      const div=document.createElement('div'); div.className='infoItem';
+      div.innerHTML=`<b>${i+1}. ${row.name}</b><br>المديرية: ${row.dir}<br>القرية: ${row.vil}<br>حدود البلدية: ${row.adminPos}<br>التنظيم: ${row.planPos}<br>وادي الأردن: ${row.jvaPos}<br>حالة التنظيم: ${row.planStat}<br><span style="color:#ff4d4f;font-weight:bold">الاختصاص: ${row.jurStat}</span><br>X: ${row.lon} , Y: ${row.lat}`;
+      div.addEventListener('click',()=>applyRow(row));
+      infoBox.appendChild(div);
+    });
+  }
+  function runSearch(){
+    const matches=bestMatches(basinInput.value);
+    if(!matches.length){ showErr(errExcel,'لم يتم العثور على أي نتائج.'); return; }
+    basinMsg.style.display='block'; basinMsg.textContent=`تم العثور على ${matches.length} نتيجة.`;
+    renderRightResults(matches); renderLeftList(matches); applyRow(matches[0]);
+  }
+
+  /* XY */
+  let xyMarker=null, xyCircle=null;
+  function goToXY(x,y){
+    if(Math.abs(x)>180||Math.abs(y)>90){ showErr(document.getElementById('xyErr'),'إحداثيات خارج مدى WGS84.'); return; }
+    const latlng=L.latLng(y,x);
+    const icon=L.divIcon({className:'target-pin target-pulse',iconSize:[38,38],iconAnchor:[19,19]});
+    if(!xyMarker){ xyMarker=L.marker(latlng,{icon}).addTo(map); } else { xyMarker.setIcon(icon); xyMarker.setLatLng(latlng); }
+    const r=Math.max(0,Number(document.getElementById('rad').value||0));
+    if(r>0){
+      if(!xyCircle){ xyCircle=L.circle(latlng,{radius:r,color:'#FFD700',weight:2,fillOpacity:0.05}).addTo(map);}
+      else { xyCircle.setLatLng(latlng); xyCircle.setRadius(r);}
+    } else if(xyCircle){ map.removeLayer(xyCircle); xyCircle=null; }
+
+    map.setView(latlng, Math.max(map.getZoom(), 15), {animate:true, duration:0.8});
+    setTimeout(()=>centerAligned(latlng), 350);
+  }
+  function clearMarker(){ if(xyMarker){ map.removeLayer(xyMarker); xyMarker=null; } if(xyCircle){ map.removeLayer(xyCircle); xyCircle=null; } }
+
+  function clearSelect(sel){ sel.innerHTML=''; sel.appendChild(document.createElement('option')); }
+  function clearAll(){
+    basinInput.value=''; basinMsg.style.display='none';
+    document.getElementById('resultsPanel').innerHTML=''; document.getElementById('extraInfo').innerHTML='';
+    document.getElementById('xyErr').style.display='none'; errExcel.style.display='none';
+    clearSelect(f_dir); clearSelect(f_vil); clearSelect(f_admin); clearSelect(f_planpos); clearSelect(f_jva); clearSelect(f_planstat); clearSelect(f_jur);
+    document.getElementById('xIn').value=''; document.getElementById('yIn').value=''; document.getElementById('rad').value='0';
+    document.getElementById('f_x').value=''; document.getElementById('f_y').value='';
+    clearMarker(); if(currentHL){ map.removeLayer(currentHL); currentHL=null; } lastSelectedBasin=null; clearTarget(); lastSelectedCenter=null;
+  }
+  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+  document.getElementById('clearXY2').addEventListener('click', clearAll);
+
+  document.getElementById('goXY').addEventListener('click',()=>{
+    const xs=document.getElementById('xIn').value.trim().replace(',','.');
+    const ys=document.getElementById('yIn').value.trim().replace(',','.');
+    if(!xs||!ys){ showErr(document.getElementById('xyErr'),'أدخل X و Y.'); return; }
+    const x=Number(xs), y=Number(ys);
+    if(!isFinite(x)||!isFinite(y)){ showErr(document.getElementById('xyErr'),'القيم غير رقمية.'); return; }
+    goToXY(x,y); document.getElementById('f_x').value=x; document.getElementById('f_y').value=y;
+  });
+
+  document.getElementById('goSel').addEventListener('click',runSearch);
+  basinInput.addEventListener('change',runSearch);
+  basinInput.addEventListener('input',()=>{ basinMsg.style.display='none'; });
+
+  loadExcel();
+// rebuildRoadsFromStorage();
+refreshRoadsLayer()
+
+  /* ——— فهرس الطبقات للطباعة ——— */
+  function buildPrintLegendHTML(){
+    const items=[];
+    for(const [id,info] of LAYERS){
+      if(!info || !info.opts || info.opts.show !== true) continue;
+      const key = fileKeyFromUrl(id);
+      const name = (NAME_MAP[key]?.name) || niceName(key);
+      const stroke = info.opts.color || '#111827';
+      const fill   = info.opts.fillColor || '#e5e7eb';
+      items.push(
+        `<div class="plg-item" title="${name}">
+           <span class="plg-swatch" style="--stroke:${stroke};--fill:${fill}"></span>
+           <span class="plg-name">${name}</span>
+         </div>`
+      );
+    }
+    if(!items.length){
+      return `<div class="plg-item"><span class="plg-name">لا توجد طبقات ظاهرة.</span></div>`;
+    }
+    return items.join('');
+  }
+  function updatePrintLegendOverlay(){
+    const body=document.getElementById('plgBody');
+    if(body){ body.innerHTML = buildPrintLegendHTML(); }
+  }
+
+  /* طباعة */
+  function formatBasinInfo(b){
+    if(!b) return 'لم يتم اختيار حوض.';
+    return `الحوض: ${b.name} — المديرية: ${b.dir} — القرية: ${b.vil} — حدود البلدية: ${b.adminPos} — التنظيم: ${b.planPos} — وادي الأردن: ${b.jvaPos} — حالة التنظيم: ${b.planStat} — الاختصاص: ${b.jurStat} — X: ${b.lon} , Y: ${b.lat}`;
+  }
+  function updatePrintBands(){
+    document.getElementById('printBasinInfo').textContent = formatBasinInfo(lastSelectedBasin);
+    const d=new Date(); const pad=n=>String(n).padStart(2,'0');
+    const stamp=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    document.getElementById('printDate').textContent = `تاريخ الطباعة: ${stamp}`;
+    updatePrintLegendOverlay();
+  }
+
+  /* دعم Ctrl+P وزر الصفحة */
+  const beforePrint = ()=>{
+    document.documentElement.classList.add('printing');
+    updatePrintBands();
+    setTimeout(()=>map.invalidateSize(), 30);
+  };
+  const afterPrint = ()=>{
+    document.documentElement.classList.remove('printing');
+    setTimeout(()=>map.invalidateSize(), 30);
+  };
+  if('onbeforeprint' in window){
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint',  afterPrint);
+  } else if (window.matchMedia){
+    const mql = window.matchMedia('print');
+    mql.addEventListener('change', e => { e.matches ? beforePrint() : afterPrint(); });
+  }
+
+  document.getElementById('printBtn').addEventListener('click',()=>{
+    beforePrint();
+    window.print();
+    afterPrint();
+  });
+
+  /* إحداثيات مؤشر الماوس ضمن الشارة */
+  /* إحداثيات مؤشر الماوس ضمن الشارة — نسخة آمنة */
+(function bindMouseCoords(){
+  const el = document.getElementById('mouseCoords');
+  if(!el) return;
+
+  const fmt = v => (Math.abs(v)>999 ? v.toFixed(3) : v.toFixed(6));
+
+  function onMove(e){
+    const {lat,lng} = e.latlng;
+    el.textContent = `X: ${fmt(lng)} , Y: ${fmt(lat)}`;
+  }
+  function onOut(){ el.textContent = 'X: — , Y: —'; }
+
+  // تنظيف أي مستمع قديم ثم الربط (آمن إذا لم تكن الدوال معرفة)
+  try{ map.off('mousemove', onMove); map.off('mouseout', onOut); }catch(e){}
+  map.on('mousemove', onMove);
+  map.on('mouseout', onOut);
+
+  // تأكد أن عنصر الخريطة يستقبل أحداث المؤشر
+  map.getContainer().style.pointerEvents = 'auto';
+})();
+
+(() =>{
+
+  const $ = s=>document.querySelector(s);
+  const panel = $('#measurePanel');
+  $('#measureToggle').onclick = ()=> panel.classList.toggle('open');
+
+  const btnDist = $('#mDist'), btnArea = $('#mArea'), btnCoord = $('#mCoord');
+  const btnFinish = $('#mFinish'), btnClear = $('#mClear');
+  const info = $('#mInfo');
+
+  let mode = 'none';
+  let pts = [];
+  let markers = [];
+  let gfx = []; // polylines/polygons overlays
+  let coordClickHandler, mapClickHandler, moveHandler;
+
+  function setMode(m){
+    mode = m;
+    [btnDist,btnArea,btnCoord].forEach(b=>b.classList.remove('active'));
+    if(m==='dist') btnDist.classList.add('active');
+    if(m==='area') btnArea.classList.add('active');
+    if(m==='coord') btnCoord.classList.add('active');
+
+    clearHandlers();
+    map.getContainer().style.cursor = (m==='none') ? '' : 'crosshair';
+    if(m==='dist' || m==='area') bindDrawHandlers();
+    if(m==='coord') bindCoordHandler();
+    updateInfo();
+  }
+
+  function updateInfo(){
+    if(mode==='dist'){
+      const d = totalDistance(pts);
+      info.textContent = d>0 ? `المسافة: ${formatMeters(d)}` : 'انقر لإضافة نقاط المسار.';
+    }else if(mode==='area'){
+      const a = polygonArea(pts);
+      info.textContent = a>0 ? `المساحة: ${formatArea(a)}` : 'انقر لرسم مضلع ثم أنهِ.';
+    }else if(mode==='coord'){
+      info.textContent = 'انقر على الخريطة لعرض الإحداثيات ونسخها.';
+    }else{
+      info.textContent = 'اختر أداة، ثم انقر على الخريطة.';
+    }
+  }
+
+  // === تنسيقات أرقام ===
+  function formatMeters(m){
+    if(m<1000) return `${m.toFixed(1)} م`;
+    return `${(m/1000).toFixed(3)} كم`;
+  }
+  function formatArea(a){
+    if(a<1e6) return `${a.toFixed(1)} م²`;
+    return `${(a/1e6).toFixed(3)} كم²`;
+  }
+
+  // === حسابات ===
+  function totalDistance(arr){
+    if(arr.length<2) return 0;
+    let s=0; for(let i=1;i<arr.length;i++) s += map.distance(arr[i-1], arr[i]);
+    return s;
+  }
+  // مساحة مضلع جيوديسية تقريبية (مأخوذة من خوارزميات شائعة)
+  function polygonArea(arr){
+    if(arr.length<3) return 0;
+    const R = 6378137; // نصف قطر الأرض (WGS84)
+    let area = 0;
+    for(let i=0, len=arr.length; i<len; i++){
+      const p1 = arr[i];
+      const p2 = arr[(i+1)%len];
+      const lon1 = p1.lng * Math.PI/180, lat1 = p1.lat * Math.PI/180;
+      const lon2 = p2.lng * Math.PI/180, lat2 = p2.lat * Math.PI/180;
+      area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    area = Math.abs(area * (R*R) / 2.0);
+    return area;
+  }
+
+  // === رسومات مساعدة ===
+  function drawMarkers(){
+    markers.forEach(m=>map.removeLayer(m));
+    markers = pts.map(ll=> L.circleMarker(ll,{radius:5,color:'#22c55e',weight:2,fillColor:'#22c55e',fillOpacity:.9}).addTo(map));
+  }
+  function drawShape(){
+    gfx.forEach(g=>map.removeLayer(g)); gfx=[];
+    if(mode==='dist' && pts.length>=2){
+      gfx.push(L.polyline(pts,{color:'#22c55e',weight:3}).addTo(map));
+    }
+    if(mode==='area' && pts.length>=2){
+      gfx.push(L.polygon(pts,{color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:.15,weight:3}).addTo(map));
+    }
+  }
+  function refresh(){
+    drawMarkers(); drawShape(); updateInfo();
+  }
+
+  // === الأحداث ===
+  function bindDrawHandlers(){
+    mapClickHandler = (e)=>{
+      pts.push(e.latlng);
+      refresh();
+    };
+    moveHandler = (e)=>{
+      // معاينة الضلع الأخير مع مؤشر الفأرة
+      if((mode==='dist' || mode==='area') && pts.length){
+        drawShape();
+        const temp = pts.concat([e.latlng]);
+        const tempLine = L.polyline(temp,{color:'#60a5fa',dashArray:'6 6',weight:2,opacity:.8}).addTo(map);
+        gfx.push(tempLine);
+        if(mode==='dist'){
+          const d = totalDistance(temp);
+          info.textContent = `المسافة (مؤقت): ${formatMeters(d)}`;
+        }
+      }
+    };
+    map.on('click', mapClickHandler);
+    map.on('mousemove', moveHandler);
+  }
+
+  function bindCoordHandler(){
+    coordClickHandler = (e)=>{
+      const {lat,lng} = e.latlng;
+      const txt = `X: ${lng.toFixed(6)} , Y: ${lat.toFixed(6)}`;
+      L.popup().setLatLng(e.latlng).setContent(`<b>${txt}</b><br>تم النسخ إلى الحافظة`).openOn(map);
+      try{ navigator.clipboard.writeText(txt); }catch{}
+      info.textContent = txt;
+    };
+    map.on('click', coordClickHandler);
+  }
+
+  function clearHandlers(){
+    if(mapClickHandler){ map.off('click', mapClickHandler); mapClickHandler=null; }
+    if(coordClickHandler){ map.off('click', coordClickHandler); coordClickHandler=null; }
+    if(moveHandler){ map.off('mousemove', moveHandler); moveHandler=null; }
+  }
+
+  function finish(){
+    if(mode==='dist' && pts.length>=2){
+      const d = totalDistance(pts);
+      info.textContent = `المسافة النهائية: ${formatMeters(d)}`;
+    }else if(mode==='area' && pts.length>=3){
+      const a = polygonArea(pts);
+      info.textContent = `المساحة النهائية: ${formatArea(a)}`;
+    }
+    // يبقى الرسم حتى يمسح
+  }
+
+  function clearAll(){
+    pts = [];
+    markers.forEach(m=>map.removeLayer(m)); markers=[];
+    gfx.forEach(g=>map.removeLayer(g)); gfx=[];
+    updateInfo();
+  }
+
+  // أزرار
+  btnDist.onclick = ()=> setMode(mode==='dist' ? 'none' : 'dist');
+  btnArea.onclick = ()=> setMode(mode==='area' ? 'none' : 'area');
+  btnCoord.onclick = ()=> setMode(mode==='coord' ? 'none' : 'coord');
+  btnFinish.onclick = finish;
+  btnClear.onclick  = clearAll;
+
+  // Esc لإلغاء الوضع
+  window.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ setMode('none'); }
+  });
+})(); 
+
+</script>
+<div id="roadsEditorBackdrop" class="modal-backdrop"></div>
+<div id="roadsEditorModal" class="modal" role="dialog" aria-modal="true" aria-label="تحرير الطرق">
+  <div class="modal-head">
+    <i class="fa-solid fa-table"></i>
+    <div class="modal-title">تحرير الطرق (إضافة/حذف/تعديل دفعي)</div>
+  </div>
+  <div class="modal-body">
+    <div style="margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap">
+      <button id="btnAddRoadRow" class="btn"><i class="fa-solid fa-plus"></i> إضافة صف</button>
+      <span style="color:#9db2ce;font-size:12px">ملاحظة: الصفوف الجديدة تُحفظ بدون هندسة (يمكن رسمها لاحقًا ثم حفظها باسم مطابق).</span>
+    </div>
+    <div style="overflow:auto; max-height:60vh">
+      <table id="roadsGrid">
+        <thead>
+          <tr style="color:#9db2ce">
+            <th>إظهار</th>
+            <th>الاسم</th>
+            <th>التصنيف</th>
+            <th>السرعة (كم/س)</th>
+            <th>ملاحظات</th>
+            <th>الطول</th>
+            <th>حذف</th>
+          </tr>
+        </thead>
+        <tbody id="roadsGridBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button id="btnSaveRoadsGrid" class="btn primary"><i class="fa-solid fa-floppy-disk"></i> حفظ التغييرات</button>
+    <button id="btnCloseRoadsGrid" class="btn"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+  </div>
+</div>
+<script>
+(function bindRoadsEditorUI(){
+  const open = document.getElementById('btnOpenRoadsEditor');
+  const add  = document.getElementById('btnAddRoadRow');
+  const save = document.getElementById('btnSaveRoadsGrid');
+  const close= document.getElementById('btnCloseRoadsGrid');
+  const back = document.getElementById('roadsEditorBackdrop');
+
+  open  && (open.onclick  = openRoadsEditor);
+  add   && (add.onclick   = addEmptyRoadRow);
+  save  && (save.onclick  = ()=>{ try{ saveRoadsGrid(); } catch(err){ console.error(err); alert('فشل الحفظ: '+err.message); }});
+  close && (close.onclick = closeRoadsEditor);
+  back  && (back.onclick  = closeRoadsEditor);
+})();
+</script>
+<script>
+// عناصر الواجهة
+const measureToggle = document.getElementById('measureToggle');
+const measurePanel  = document.getElementById('measurePanel');
+const btnDist  = document.getElementById('mDist');
+const btnArea  = document.getElementById('mArea');
+const btnCoord = document.getElementById('mCoord');
+const btnFinish= document.getElementById('mFinish');
+const btnClear = document.getElementById('mClear');
+const mInfo    = document.getElementById('mInfo');
+
+// حالة القياس
+let activeTool = null;                // 'dist' | 'area' | 'coord' | null
+let currentDrawer = null;             // L.Draw.*
+let coordHandler = null;
+const measureGroup = L.featureGroup().addTo(map);
+
+// حساسية تحديث المؤشر أثناء الرسم
+const MOVE_EPS_METERS = 3; // ارفعها لتقليل حساسية المؤشر
+let lastMovePt = null;
+
+// فتح/إغلاق اللوحة
+measureToggle.addEventListener('click', ()=> {
+  measurePanel.classList.toggle('open');
+});
+
+// إدارة إبراز الأزرار
+const allToolBtns = [btnDist, btnArea, btnCoord];
+function setActiveButton(btn) {
+  allToolBtns.forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+// إيقاف القياس كليًا
+function stopMeasuring({clearLayers=false, resetMsg=true} = {}) {
+  try { currentDrawer?.disable(); } catch{}
+  currentDrawer = null;
+
+  if (coordHandler) { map.off('click', coordHandler); coordHandler = null; }
+  document.querySelectorAll('.leaflet-draw-tooltip').forEach(el => el.remove());
+  map.getContainer().style.cursor = '';
+
+  if (clearLayers) { measureGroup.clearLayers(); }
+
+  activeTool = null;
+  setActiveButton(null);
+  lastMovePt = null;
+  if (resetMsg) mInfo.textContent = 'اختر أداة، ثم انقر على الخريطة.';
+}
+
+// أدوات مساعدة
+function niceMeters(m){ return m < 1000 ? `${m.toFixed(1)} م` : `${(m/1000).toFixed(2)} كم`; }
+function niceArea(a){ return `المساحة: ${a.toFixed(1)} م² (${(a/1e6).toFixed(3)} كم²)`; }
+function polylineDistance(latlngs){
+  let d=0; for(let i=1;i<latlngs.length;i++) d += latlngs[i-1].distanceTo(latlngs[i]); return d;
+}
+function ringArea(latlngs){
+  if (L.GeometryUtil?.geodesicArea) return L.GeometryUtil.geodesicArea(latlngs);
+  return 0;
+}
+
+// قراءة نقاط الرسم المؤقتة من Leaflet.Draw
+function getTempPoints(){
+  // محاولة آمنة لكل من Polyline/Polygon
+  try {
+    if (currentDrawer && currentDrawer._poly && currentDrawer._poly.getLatLngs) {
+      const arr = currentDrawer._poly.getLatLngs();
+      // Polyline => [] ، Polygon => [[ring]]
+      return Array.isArray(arr[0]) ? (arr[0]||[]) : (arr||[]);
+    }
+    if (currentDrawer && Array.isArray(currentDrawer._markers)) {
+      return currentDrawer._markers.map(m=>m.getLatLng());
+    }
+  } catch {}
+  return [];
+}
+
+// معاينة حية أثناء الحركة
+function livePreview(e){
+  if (!activeTool || !currentDrawer) return;
+
+  if (lastMovePt){
+    if (e.latlng.distanceTo(lastMovePt) < MOVE_EPS_METERS) return;
+  }
+  lastMovePt = e.latlng;
+
+  const basePts = getTempPoints();
+  if (!basePts.length) return;
+
+  if (activeTool === 'dist') {
+    const pts = basePts.concat([e.latlng]);
+    const d = polylineDistance(pts);
+    mInfo.textContent = `المسافة (مؤقت): ${niceMeters(d)}`;
+  } else if (activeTool === 'area' && basePts.length >= 2) {
+    const ring = basePts.concat([e.latlng]);
+    const a = ringArea(ring);
+    mInfo.textContent = `\u200f${niceArea(a)} (مؤقت)`;
+  }
+}
+
+// تفعيل قياس المسافة
+btnDist.addEventListener('click', ()=>{
+  stopMeasuring({clearLayers:false, resetMsg:false});
+  activeTool = 'dist';
+  setActiveButton(btnDist);
+  mInfo.textContent = 'ارسم خطًا لقياس المسافة. انقر لإنهاء.';
+  currentDrawer = new L.Draw.Polyline(map, { shapeOptions:{ color:'#22c55e', weight:4 } });
+  currentDrawer.enable();
+
+  map.on('mousemove', livePreview);
+
+  map.once(L.Draw.Event.CREATED, ev => {
+    map.off('mousemove', livePreview);
+    const layer = ev.layer.addTo(measureGroup);
+    const d = polylineDistance(layer.getLatLngs());
+    mInfo.textContent = `المسافة: ${niceMeters(d)}`;
+    // نوقف وضع الرسم لكن نبقي الزر مميزًا حتى يضغط "إنهاء" أو يختار أداة أخرى
+    stopMeasuring({clearLayers:false, resetMsg:false});
+    setActiveButton(btnDist);
+  });
+});
+
+// تفعيل قياس المساحة
+btnArea.addEventListener('click', ()=>{
+  stopMeasuring({clearLayers:false, resetMsg:false});
+  activeTool = 'area';
+  setActiveButton(btnArea);
+  mInfo.textContent = 'ارسم مضلعًا لقياس المساحة. انقر لإغلاق المضلع.';
+  currentDrawer = new L.Draw.Polygon(map, { shapeOptions:{ color:'#f59e0b', weight:3, fillOpacity:0.15 } });
+  currentDrawer.enable();
+
+  map.on('mousemove', livePreview);
+
+  map.once(L.Draw.Event.CREATED, ev => {
+    map.off('mousemove', livePreview);
+    const layer = ev.layer.addTo(measureGroup);
+    const ring = (layer.getLatLngs()[0]||[]);
+    const a = ringArea(ring);
+    mInfo.textContent = niceArea(a);
+    stopMeasuring({clearLayers:false, resetMsg:false});
+    setActiveButton(btnArea);
+  });
+});
+
+// تفعيل إحداثيات
+btnCoord.addEventListener('click', ()=>{
+  stopMeasuring({clearLayers:false, resetMsg:false});
+  activeTool = 'coord';
+  setActiveButton(btnCoord);
+  mInfo.textContent = 'انقر على الخريطة لالتقاط الإحداثيات.';
+  coordHandler = e => {
+    const {lat, lng} = e.latlng;
+    mInfo.textContent = `X: ${lng.toFixed(6)} , Y: ${lat.toFixed(6)}`;
+    L.circleMarker(e.latlng, {radius:5, color:'#2563eb', weight:2, fillOpacity:1}).addTo(measureGroup);
+    stopMeasuring({clearLayers:false, resetMsg:false});
+    setActiveButton(btnCoord);
+  };
+  map.once('click', coordHandler);
+});
+
+// إنهاء وتفريغ
+btnFinish.addEventListener('click', ()=> stopMeasuring({clearLayers:false, resetMsg:true}));
+btnClear .addEventListener('click', ()=> stopMeasuring({clearLayers:true , resetMsg:true}));
+
+// ESC لإلغاء
+window.addEventListener('keydown', e=>{
+  if (e.key === 'Escape') stopMeasuring({clearLayers:false, resetMsg:true});
+});
+</script>
+
+</script>
+
+
+
+
+<script id="roads-safe-init">
+function __initRoadsSafe(){
+  try{ if(typeof rebuildRoadsFromStorage==='function') rebuildRoadsFromStorage(); }catch(e){ console.warn('rebuild fail', e); }
+  try{ if(typeof refreshRoadsLayer==='function') refreshRoadsLayer(); }catch(e){ console.warn('refresh fail', e); }
+}
+if (document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', ()=> setTimeout(__initRoadsSafe, 0));
+} else {
+  setTimeout(__initRoadsSafe, 0);
+}
+</script>
+
+
+
+
+
+<script id="print-controller-final">
+(function(){
+  if(window.__printCtlBound) return; window.__printCtlBound=true;
+  function updatePrintBands(){
+    var el = document.getElementById('printBasinInfo');
+    if(el && window.lastSelectedBasin){
+      var b=window.lastSelectedBasin;
+      el.textContent = `الحوض: ${b.name} — المديرية: ${b.dir} — القرية: ${b.vil} — حدود البلدية: ${b.adminPos} — التنظيم: ${b.planPos} — وادي الأردن: ${b.jvaPos} — حالة التنظيم: ${b.planStat} — الاختصاص: ${b.jurStat} — X: ${b.lon} , Y: ${b.lat}`;
+    }
+    var d=document.getElementById('printDate'); if(d){ var now=new Date(); d.textContent = now.toLocaleString('ar-JO'); }
+  }
+  function beforePrint(){ document.documentElement.classList.add('printing'); try{ updatePrintBands(); map && map.invalidateSize(); }catch(e){} }
+  function afterPrint(){ document.documentElement.classList.remove('printing'); try{ map && map.invalidateSize(); }catch(e){} }
+  if('onbeforeprint' in window){ window.addEventListener('beforeprint', beforePrint); window.addEventListener('afterprint', afterPrint); }
+  else if (window.matchMedia){ var mql=window.matchMedia('print'); mql.addEventListener('change', e=>{ e.matches?beforePrint():afterPrint(); }); }
+  var btn = document.getElementById('printBtn');
+  if(btn){ btn.addEventListener('click', function(){ beforePrint(); requestAnimationFrame(function(){ window.print(); setTimeout(afterPrint, 300); }); }); }
+})();
+</script>
+
+
+
+
+
+
+
+<script id="print-clone-controller">
+(function(){
+  if(window.__printCtlOnce) return; window.__printCtlOnce = true;
+  let IN_PRINT = false;
+
+  function _valText(id){
+    const el = document.getElementById(id);
+    if(!el) return '';
+    if(el.tagName === 'SELECT'){
+      const i = el.selectedIndex;
+      return i >= 0 ? (el.options[i].text||'').trim() : (el.value||'').trim();
+    }
+    return (el.value||'').trim();
+  }
+
+  function buildInfoHTML(){
+    const parts=[];
+    const basin=_valText('basinInput');
+    const dir=_valText('f_dir');
+    const vil=_valText('f_vil');
+    const admin=_valText('f_admin');
+    const planp=_valText('f_planpos');
+    const jva=_valText('f_jva');
+    const planst=_valText('f_planstat');
+    const jur=_valText('f_jur');
+    const X=_valText('f_x'), Y=_valText('f_y');
+    if(basin) parts.push('<b>اسم الحوض:</b> '+basin);
+    if(dir) parts.push('<b>المديرية:</b> '+dir);
+    if(vil) parts.push('<b>القرية:</b> '+vil);
+    if(admin) parts.push('<b>موقعه من حدود البلدية:</b> '+admin);
+    if(planp) parts.push('<b>من حدود التنظيم المصدق:</b> '+planp);
+    if(jva) parts.push('<b>من حدود سلطة وادي الأردن:</b> '+jva);
+    if(planst) parts.push('<b>حالة التنظيم:</b> '+planst);
+    if(jur) parts.push('<b>حالة الاختصاص:</b> '+jur);
+    if(X||Y) parts.push('<b>الإحداثيات:</b> X '+(X||'—')+' , Y '+(Y||'—'));
+    return parts.length?parts.join(' • '):'لا توجد بيانات حوض محددة.';
+  }
+
+  function clearClones(){
+    ['_printHeaderClone','_printFooterClone'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+    });
+  }
+
+  function ensureHeaderClone(){
+    const src = document.getElementById('printHeader');
+    if(!src) return;
+    const clone = document.createElement('div');
+    clone.id = '_printHeaderClone';
+    clone.className = 'print-only';
+    clone.innerHTML = src.innerHTML;
+    document.body.insertBefore(clone, document.body.firstChild);
+    const d = clone.querySelector('#printDate');
+    if(d) d.textContent = new Date().toLocaleString('ar-JO');
+    const info = clone.querySelector('#printBasinInfo');
+    if(info) info.innerHTML = buildInfoHTML();
+  }
+
+  function ensureFooterClone(){
+    const clone = document.createElement('div');
+    clone.id = '_printFooterClone';
+    clone.className = 'print-only';
+    const src = document.querySelector('.print-band.bottom');
+    clone.innerHTML = src ? src.innerHTML : '<div class="print-band bottom"><div class="print-dev">إعداد وتصميم: م. أحمد الزن</div></div>';
+    document.body.appendChild(clone);
+    const dev = clone.querySelector('.print-dev');
+    if(dev && !dev.textContent.trim()) dev.textContent = 'إعداد وتصميم: م. أحمد الزن';
+  }
+
+  function beforePrint(){
+    if(IN_PRINT) return;
+    IN_PRINT = true;
+    clearClones();
+    ensureHeaderClone();
+    ensureFooterClone();
+    try{ map && map.invalidateSize(); }catch(e){}
+  }
+
+  function afterPrint(){
+    IN_PRINT = false;
+    clearClones();
+    try{ map && map.invalidateSize(); }catch(e){}
+  }
+
+  window.addEventListener('beforeprint', beforePrint);
+  window.addEventListener('afterprint', afterPrint);
+
+  const btn = document.getElementById('printBtn');
+  if(btn && !btn.__printBound){
+    btn.addEventListener('click', function(){ window.print(); });
+    btn.__printBound = true;
+  }
+})();
+</script>
+
+
+
+
+
+
+
+<script id="print-dedupe-controller">
+(function(){
+  if(window.__printDedupeBound) return; window.__printDedupeBound = true;
+
+  // Debounce window.print to prevent double dialogs
+  const _nativePrint = window.print ? window.print.bind(window) : null;
+  let _printingNow = false;
+  window.print = function(){
+    if(_printingNow) return;
+    _printingNow = true;
+    try{ _nativePrint && _nativePrint(); } finally {
+      // allow re-print after dialog fully closes
+      setTimeout(()=>{ _printingNow = false; }, 1500);
+    }
+  };
+
+  // Remove any inline legacy handlers
+  try{ window.onbeforeprint = null; window.onafterprint = null; }catch(e){}
+
+  // Rebuild a clean print button listener (drop previous duplicates)
+  const btn = document.getElementById('printBtn');
+  if(btn){
+    const clone = btn.cloneNode(true);            // removes old listeners
+    btn.parentNode.replaceChild(clone, btn);
+    clone.addEventListener('click', ()=> window.print(), { once:false });
+  }
+
+  // Guard to avoid rebuilding clones more than once per session
+  let IN_PRINT = false;
+  function clearClones(){
+    ['_printHeaderClone','_printFooterClone','_printLegendClone'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+    });
+  }
+
+  function _valText(id){
+    const el=document.getElementById(id);
+    if(!el) return '';
+    if(el.tagName==='SELECT'){ const i=el.selectedIndex; return i>=0?(el.options[i].text||'').trim():(el.value||'').trim(); }
+    return (el.value||'').trim();
+  }
+  function buildInfoHTML(){
+    const p=[], basin=_valText('basinInput'), dir=_valText('f_dir'), vil=_valText('f_vil'),
+          admin=_valText('f_admin'), planp=_valText('f_planpos'), jva=_valText('f_jva'),
+          planst=_valText('f_planstat'), jur=_valText('f_jur'), X=_valText('f_x'), Y=_valText('f_y');
+    if(basin) p.push('<b>اسم الحوض:</b> '+basin);
+    if(dir) p.push('<b>المديرية:</b> '+dir);
+    if(vil) p.push('<b>القرية:</b> '+vil);
+    if(admin) p.push('<b>موقعه من حدود البلدية:</b> '+admin);
+    if(planp) p.push('<b>من حدود التنظيم المصدق:</b> '+planp);
+    if(jva) p.push('<b>من حدود سلطة وادي الأردن:</b> '+jva);
+    if(planst) p.push('<b>حالة التنظيم:</b> '+planst);
+    if(jur) p.push('<b>حالة الاختصاص:</b> '+jur);
+    if(X||Y) p.push('<b>الإحداثيات:</b> X '+(X||'—')+' , Y '+(Y||'—'));
+    return p.length?p.join(' • '):'لا توجد بيانات حوض محددة.';
+  }
+  function ensureHeaderClone(){
+    const src=document.getElementById('printHeader'); if(!src) return;
+    const clone=document.createElement('div'); clone.id='_printHeaderClone'; clone.className='print-only';
+    clone.innerHTML=src.innerHTML; document.body.insertBefore(clone, document.body.firstChild);
+    const d=clone.querySelector('#printDate'); if(d) d.textContent=new Date().toLocaleString('ar-JO');
+    const info=clone.querySelector('#printBasinInfo'); if(info) info.innerHTML=buildInfoHTML();
+  }
+  function ensureFooterClone(){
+    const clone=document.createElement('div'); clone.id='_printFooterClone'; clone.className='print-only';
+    const src=document.querySelector('.print-band.bottom');
+    clone.innerHTML= src?src.innerHTML:'<div class="print-band bottom"><div class="print-dev">إعداد وتصميم: م. أحمد الزن</div></div>';
+    document.body.appendChild(clone);
+    const dev=clone.querySelector('.print-dev'); if(dev && !dev.textContent.trim()) dev.textContent='إعداد وتصميم: م. أحمد الزن';
+  }
+
+  function beforePrint(){
+    if(IN_PRINT) return;
+    IN_PRINT = true;
+    clearClones();
+    ensureHeaderClone();
+    ensureFooterClone();
+    try{ map && map.invalidateSize(); }catch(e){}
+  }
+  function afterPrint(){
+    IN_PRINT = false;
+    clearClones();
+    try{ map && map.invalidateSize(); }catch(e){}
+  }
+
+  window.addEventListener('beforeprint', beforePrint, { once:false });
+  window.addEventListener('afterprint',  afterPrint,  { once:false });
+})();
+</script>
+
+</body>
+</html>
+

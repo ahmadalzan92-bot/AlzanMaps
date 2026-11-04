@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>تسجيل الدخول – نظام مادبا</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+<style>
+  :root{ --bg:#0b1224; --card:#0f172a; --text:#eaf3ff; --muted:#9db2ce; --accent:#10b981; --border:#1c2a4e; }
+  *{box-sizing:border-box}
+  body{margin:0;height:100svh;background:radial-gradient(1200px 600px at 80% -20%,#1e293b55,#0000),var(--bg);display:grid;place-items:center;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Kufi Arabic","Noto Sans Arabic",sans-serif}
+  .card{width:min(420px,92vw);background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 0 0 1px #0d223f}
+  .hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#22c55e55,#0ea5e955)}
+  .title{font-weight:900;font-size:18px}
+  .subtitle{font-size:12px;color:var(--muted)}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .field label{font-size:.9rem;color:var(--muted)}
+  .input{display:flex;align-items:center;gap:8px;background:#0a1429;border:1px solid var(--border);border-radius:12px;padding:10px}
+  .input input{all:unset;flex:1;direction:ltr}
+  .btn{width:100%;margin-top:12px;cursor:pointer;background:var(--accent);color:#063b35;border:0;border-radius:12px;padding:12px;font-weight:900}
+  .btn:hover{filter:brightness(1.05)}
+  .err{display:none;margin-top:10px;color:#fecaca;background:#683535;border:1px solid #6b1d1d;padding:.6rem .7rem;border-radius:10px;font-size:.95rem}
+  .foot{margin-top:12px;font-size:12px;color:var(--muted);text-align:center}
+  .showpass{cursor:pointer;color:#9bd7ff}
+</style>
+</head>
+<body>
+<script src="auth.js"></script>
+
+<div class="card">
+  <div class="hdr">
+    <div class="logo"></div>
+    <div>
+      <div class="title">تسجيل الدخول</div>
+      <div class="subtitle">نظام خرائط مديرية أشغال مأدبا</div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>اسم المستخدم</label>
+    <div class="input"><i class="fa-solid fa-user-shield"></i><input id="u" placeholder="مثال: admin" autocomplete="username"></div>
+  </div>
+
+  <div class="field">
+    <label>كلمة المرور</label>
+    <div class="input">
+      <i class="fa-solid fa-key"></i>
+      <input id="p" type="password" placeholder="••••••••" autocomplete="current-password">
+      <span id="toggleP" class="showpass" title="إظهار/إخفاء"><i class="fa-regular fa-eye"></i></span>
+    </div>
+  </div>
+
+  <button id="go" class="btn"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
+  <div id="err" class="err"></div>
+  <div class="foot">تلميح: الإعداد الافتراضي <b>admin / 1234</b></div>
+</div>
+
+<script>
+  const u = document.getElementById('u');
+  const p = document.getElementById('p');
+  const btn = document.getElementById('go');
+  const err = document.getElementById('err');
+  const toggle = document.getElementById('toggleP');
+
+  toggle.addEventListener('click', () => {
+    p.type = p.type === 'password' ? 'text' : 'password';
+    toggle.innerHTML = p.type === 'password'
+      ? '<i class="fa-regular fa-eye"></i>'
+      : '<i class="fa-regular fa-eye-slash"></i>';
+  });
+
+  function submit(){
+    const res = window.tryLogin(u.value.trim(), p.value);
+    if(res && res.ok){
+      err.style.display = 'none';
+      location.href = 'madaba.html'; // ← لوحة النظام بعد الدخول
+    } else {
+      err.textContent = (res && res.msg) ? res.msg : 'تعذر تسجيل الدخول.';
+      err.style.display = 'block';
+    }
+  }
+
+  btn.addEventListener('click', submit);
+  p.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  u.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+</script>
+</body>
+</html>
